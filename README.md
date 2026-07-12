@@ -1,5 +1,9 @@
 # insynic
 
+
+[中文介绍](https://github.com/user-attachments/files/29945037/README_CN.md)
+
+
 <div align="center">
 
 **insynic 1.10 Lite**
