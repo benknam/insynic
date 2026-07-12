@@ -1,3 +1,4 @@
+[简体中文](https://github.com/benknam/insynic/blob/main/README_CN.md)
 
 A macOS desktop application for controlling Android devices
 
