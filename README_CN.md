@@ -1,8 +1,16 @@
 # insynic
 
-<div align="center">
+---
 
-**insynic 1.10 Lite**
+<div align="center">
+<img width="266" height="642" alt="image" src="https://github.com/user-attachments/assets/95dc0b68-7435-4de2-8dd5-4872865e320d" /><img width="269" height="645" alt="image" src="https://github.com/user-attachments/assets/74c44a7a-00f8-4a69-8ad0-9d981136cf13" />
+<img width="1082" height="514" alt="image" src="https://github.com/user-attachments/assets/c58c2f4a-a5c0-48b2-bbc1-443812d40322" />
+</div>
+
+---
+
+
+<div align="center">
 
 一个用于控制 Android 设备的 macOS 桌面应用程序
 
