@@ -1,0 +1,29 @@
+# Build outputs
+insynic/build/
+insynic/insynic.iconset/
+*.o
+*.a
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archives
+*.tar.gz
+*.zip
+
+# Other
+.qmake.stash
+Makefile
+scrcpy/
+insynic-1.10Lite-sources/
+insynic/src/test_menu.cpp
+insynic/src/test_minimal.cpp
