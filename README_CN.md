@@ -189,14 +189,6 @@ insynic/
 
 **厨房 / OMADAFAKA**
 
-## 开源协议
-
-本项目仅供学习和个人使用。所引用的 scrcpy、ADB 等工具分别遵循各自的开源协议。
-
----
-
 <div align="center">
-
-insynic 1.10 Lite · © 2025 厨房 / OMADAFAKA
 
 </div>
