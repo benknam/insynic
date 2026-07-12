@@ -188,15 +188,3 @@ This project is built upon the following open-source projects. Thanks to their d
 ## Author
 
 **厨房 / OMADAFAKA**
-
-## License
-
-This project is for educational and personal use only. The referenced tools (scrcpy, ADB, etc.) are subject to their respective open-source licenses.
-
----
-
-<div align="center">
-
-insynic 1.10 Lite · © 2025 厨房 / OMADAFAKA
-
-</div>
