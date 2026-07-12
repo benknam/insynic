@@ -1,8 +1,3 @@
-# insynic
-
-<div align="center">
-
-**insynic 1.10 Lite**
 
 A macOS desktop application for controlling Android devices
 
