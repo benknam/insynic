@@ -4,7 +4,8 @@
 
 <div align="center">
 
-**insynic 1.10 Lite**
+<img width="1085" height="517" alt="image" src="https://github.com/user-attachments/assets/b44ffe8b-ca03-4e41-bab1-5d79ecd0992e" />
+<img width="274" height="650" alt="image" src="https://github.com/user-attachments/assets/6e4ecff2-cff6-4f49-87bd-a827c68e6e48" /><img width="267" height="648" alt="image" src="https://github.com/user-attachments/assets/64d0625c-0cf2-47bd-aa80-e8e29ef1e06d" />
 
 A macOS desktop application for controlling Android devices
 
