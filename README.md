@@ -17,7 +17,7 @@ A desktop application for controlling Android devices
 
 ## Overview
 
-insynic is a native macOS desktop application for controlling and operating Android devices from a Mac. Built on top of the [scrcpy](https://github.com/Genymobile/scrcpy) engine, it integrates screen mirroring, file management, OTG input, virtual key mapping, and more, with bilingual support for English and Chinese.
+insynic is a desktop application for controlling and operating Android devices. Built on top of the [scrcpy](https://github.com/Genymobile/scrcpy) engine, it integrates screen mirroring, file management, OTG input, virtual key mapping, and more, with bilingual support for English and Chinese.
 
 ## Features
 
