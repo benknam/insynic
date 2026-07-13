@@ -15,7 +15,7 @@
 
 ## 简介
 
-insynic 是一款 macOS 原生桌面应用程序，用于在 Mac 上控制和操作 Android 设备。它基于 [scrcpy](https://github.com/Genymobile/scrcpy) 引擎构建，集成了屏幕镜像、文件管理、OTG 输入、虚拟按键映射等功能，并提供中英文双语界面。
+insynic 是一款 支持macOS 原生 和 Windows 的桌面应用程序，用于在 电脑 上控制和操作 Android 设备。它基于 [scrcpy](https://github.com/Genymobile/scrcpy) 引擎构建，集成了屏幕镜像、文件管理、OTG 输入、虚拟按键映射等功能，并提供中英文双语界面。
 
 ## 功能特性
 
