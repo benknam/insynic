@@ -106,6 +106,7 @@ private:
     InsynicProfileManager *m_profileManager;
     QWidget *m_keyContainer;
     bool m_isDraggingKey;
+    QMap<int, bool> m_toggleStates;
 };
 
 #endif

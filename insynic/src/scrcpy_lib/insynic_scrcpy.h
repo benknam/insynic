@@ -116,6 +116,9 @@ bool
 insynic_scrcpy_toggle_display(struct insynic_scrcpy *s);
 
 bool
+insynic_scrcpy_inject_touch_action(struct insynic_scrcpy *s, int x, int y, int width, int height, bool is_down);
+
+bool
 insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height);
 
 bool

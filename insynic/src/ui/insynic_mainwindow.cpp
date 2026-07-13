@@ -560,7 +560,7 @@ void
 InsynicMainWindow::onAboutClicked()
 {
     QMessageBox::about(this, tr("About insynic"),
-        tr("insynic 1.11 Lite\n\n"
+        tr("insynic 1.12 Lite\n\n"
            "A macOS application for controlling Android devices.\n\n"
            "Features:\n"
            "- Screen mirroring via scrcpy\n"
@@ -917,7 +917,14 @@ InsynicMainWindow::keyPressEvent(QKeyEvent *event)
         if (vk.keyCode == keyCode && m_scrcpy) {
             int screenX = vk.getScreenX(devW);
             int screenY = vk.getScreenY(devH);
-            insynic_scrcpy_inject_touch(m_scrcpy, screenX, screenY, devW, devH);
+            
+            if (vk.toggle) {
+                bool isPressed = m_toggleStates.value(keyCode, false);
+                insynic_scrcpy_inject_touch_action(m_scrcpy, screenX, screenY, devW, devH, !isPressed);
+                m_toggleStates[keyCode] = !isPressed;
+            } else {
+                insynic_scrcpy_inject_touch(m_scrcpy, screenX, screenY, devW, devH);
+            }
             break;
         }
     }
@@ -941,7 +948,14 @@ InsynicMainWindow::eventFilter(QObject *obj, QEvent *event)
                 if (vk.keyCode == keyCode) {
                     int screenX = vk.getScreenX(devW);
                     int screenY = vk.getScreenY(devH);
-                    insynic_scrcpy_inject_touch(m_scrcpy, screenX, screenY, devW, devH);
+                    
+                    if (vk.toggle) {
+                        bool isPressed = m_toggleStates.value(keyCode, false);
+                        insynic_scrcpy_inject_touch_action(m_scrcpy, screenX, screenY, devW, devH, !isPressed);
+                        m_toggleStates[keyCode] = !isPressed;
+                    } else {
+                        insynic_scrcpy_inject_touch(m_scrcpy, screenX, screenY, devW, devH);
+                    }
                     return true;
                 }
             }

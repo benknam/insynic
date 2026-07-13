@@ -7,6 +7,7 @@
 #include <QSlider>
 #include <QLabel>
 #include <QColor>
+#include <QCheckBox>
 #include "insynic_virtualkey.h"
 
 class InsynicKeyConfigDialog : public QDialog
@@ -48,6 +49,7 @@ private:
     QLabel *m_opacityValueLabel;
     QPushButton *m_colorBtn;
     QColor m_selectedColor;
+    QCheckBox *m_toggleCheckBox;
     QPushButton *m_okBtn;
     QPushButton *m_cancelBtn;
     QPushButton *m_deleteBtn;

@@ -4,6 +4,7 @@
 #include <QLabel>
 #include <QKeyEvent>
 #include <QColorDialog>
+#include <QCheckBox>
 
 InsynicKeyConfigDialog::InsynicKeyConfigDialog(const VirtualKey &key, QWidget *parent)
     : QDialog(parent)
@@ -28,7 +29,7 @@ VirtualKey InsynicKeyConfigDialog::getKey() const
 void InsynicKeyConfigDialog::setupUi()
 {
     setWindowTitle(tr("Configure Key"));
-    setFixedSize(320, 280);
+    setFixedSize(320, 320);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     
@@ -53,7 +54,7 @@ void InsynicKeyConfigDialog::setupUi()
     QHBoxLayout *opacityLayout = new QHBoxLayout();
     QLabel *opacityLabel = new QLabel(tr("Opacity:"), this);
     m_opacitySlider = new QSlider(Qt::Horizontal, this);
-    m_opacitySlider->setRange(10, 100);
+    m_opacitySlider->setRange(1, 100);
     m_opacitySlider->setValue(m_key.opacity);
     m_opacityValueLabel = new QLabel(QString("%1%").arg(m_key.opacity), this);
     m_opacityValueLabel->setMinimumWidth(40);
@@ -74,6 +75,12 @@ void InsynicKeyConfigDialog::setupUi()
     colorLayout->addWidget(colorLabel);
     colorLayout->addWidget(m_colorBtn);
     mainLayout->addLayout(colorLayout);
+    
+    QHBoxLayout *toggleLayout = new QHBoxLayout();
+    m_toggleCheckBox = new QCheckBox(tr("Toggle"), this);
+    m_toggleCheckBox->setChecked(m_key.toggle);
+    toggleLayout->addWidget(m_toggleCheckBox);
+    mainLayout->addLayout(toggleLayout);
     
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     m_okBtn = new QPushButton(tr("OK"), this);
@@ -167,6 +174,7 @@ void InsynicKeyConfigDialog::onOkClicked()
     m_key.size = m_sizeSpin->value();
     m_key.opacity = m_opacitySlider->value();
     m_key.color = m_selectedColor;
+    m_key.toggle = m_toggleCheckBox->isChecked();
     accept();
 }
 

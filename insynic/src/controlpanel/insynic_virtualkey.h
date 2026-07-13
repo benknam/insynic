@@ -15,10 +15,11 @@ struct VirtualKey {
     int size;
     int opacity;
     QColor color;
+    bool toggle;
     
-    VirtualKey() : keyCode(0), relX(0.5), relY(0.5), size(40), opacity(60), color(200, 200, 200) {}
-    VirtualKey(int code, const QString &name, double rx, double ry, int s, int op = 60, const QColor &c = QColor(200, 200, 200)) 
-        : keyCode(code), keyName(name), relX(rx), relY(ry), size(s), opacity(op), color(c) {}
+    VirtualKey() : keyCode(0), relX(0.5), relY(0.5), size(40), opacity(60), color(200, 200, 200), toggle(false) {}
+    VirtualKey(int code, const QString &name, double rx, double ry, int s, int op = 60, const QColor &c = QColor(200, 200, 200), bool t = false) 
+        : keyCode(code), keyName(name), relX(rx), relY(ry), size(s), opacity(op), color(c), toggle(t) {}
     
     bool isValid() const { return keyCode != 0 && relX >= 0 && relY >= 0; }
     

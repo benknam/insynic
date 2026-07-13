@@ -25,5 +25,5 @@ insynic/insynic.iconset/
 Makefile
 scrcpy/
 insynic-1.10Lite-sources/
-insynic/src/test_menu.cpp
+insynic_win/
 insynic/src/test_minimal.cpp

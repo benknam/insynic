@@ -1000,40 +1000,32 @@ insynic_scrcpy_toggle_display(struct insynic_scrcpy *s) {
 }
 
 bool
-insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height) {
+insynic_scrcpy_inject_touch_action(struct insynic_scrcpy *s, int x, int y, int width, int height, bool is_down) {
     if (!s->controller_started) {
         return false;
     }
 
-    struct sc_control_msg msg_down;
-    msg_down.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
-    msg_down.inject_touch_event.action = AMOTION_EVENT_ACTION_DOWN;
-    msg_down.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_down.inject_touch_event.buttons = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_down.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
-    msg_down.inject_touch_event.position.point.x = x;
-    msg_down.inject_touch_event.position.point.y = y;
-    msg_down.inject_touch_event.position.screen_size.width = width;
-    msg_down.inject_touch_event.position.screen_size.height = height;
-    msg_down.inject_touch_event.pressure = 1.0f;
-    if (!sc_controller_push_msg(&s->controller, &msg_down)) {
+    struct sc_control_msg msg;
+    msg.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
+    msg.inject_touch_event.action = is_down ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP;
+    msg.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
+    msg.inject_touch_event.buttons = is_down ? AMOTION_EVENT_BUTTON_PRIMARY : 0;
+    msg.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
+    msg.inject_touch_event.position.point.x = x;
+    msg.inject_touch_event.position.point.y = y;
+    msg.inject_touch_event.position.screen_size.width = width;
+    msg.inject_touch_event.position.screen_size.height = height;
+    msg.inject_touch_event.pressure = is_down ? 1.0f : 0.0f;
+    return sc_controller_push_msg(&s->controller, &msg);
+}
+
+bool
+insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height) {
+    if (!insynic_scrcpy_inject_touch_action(s, x, y, width, height, true)) {
         return false;
     }
-
     SDL_Delay(50);
-
-    struct sc_control_msg msg_up;
-    msg_up.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
-    msg_up.inject_touch_event.action = AMOTION_EVENT_ACTION_UP;
-    msg_up.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_up.inject_touch_event.buttons = 0;
-    msg_up.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
-    msg_up.inject_touch_event.position.point.x = x;
-    msg_up.inject_touch_event.position.point.y = y;
-    msg_up.inject_touch_event.position.screen_size.width = width;
-    msg_up.inject_touch_event.position.screen_size.height = height;
-    msg_up.inject_touch_event.pressure = 0.0f;
-    return sc_controller_push_msg(&s->controller, &msg_up);
+    return insynic_scrcpy_inject_touch_action(s, x, y, width, height, false);
 }
 
 bool

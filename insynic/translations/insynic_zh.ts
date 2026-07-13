@@ -76,7 +76,7 @@
         <translation>隐藏窗口</translation>
     </message>
     <message>
-        <source>insynic 1.11 Lite
+        <source>insynic 1.12 Lite
 
 A macOS application for controlling Android devices.
 
@@ -99,7 +99,7 @@ Credits:
 - FFmpeg (video decoding)
 
 Thanks to all the developers of these great tools.</source>
-        <translation>insynic 1.11 Lite
+        <translation>insynic 1.12 Lite
 
 一个用于控制 Android 设备的 macOS 应用程序。
 
@@ -609,6 +609,10 @@ Please ensure:
     <message>
         <source>Color:</source>
         <translation>颜色：</translation>
+    </message>
+    <message>
+        <source>Toggle</source>
+        <translation>开关</translation>
     </message>
     <message>
         <source>Select Key Color</source>
