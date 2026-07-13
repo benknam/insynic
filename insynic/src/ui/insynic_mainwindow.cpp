@@ -560,7 +560,7 @@ void
 InsynicMainWindow::onAboutClicked()
 {
     QMessageBox::about(this, tr("About insynic"),
-        tr("insynic 1.12 Lite\n\n"
+        tr("insynic 1.13 Lite\n\n"
            "A macOS application for controlling Android devices.\n\n"
            "Features:\n"
            "- Screen mirroring via scrcpy\n"

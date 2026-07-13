@@ -123,8 +123,15 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
     QVector<AdbFileInfo> result;
     QString path = normalizeRemotePath(remotePath);
 
+    bool readLinkOk;
+    QString realPathOutput = runAdb(
+        QStringList() << "shell" << "readlink" << "-f" << path, &readLinkOk);
+    QString resolvedPath = readLinkOk && !realPathOutput.trimmed().isEmpty() 
+        ? realPathOutput.trimmed() 
+        : path;
+
     QString output = runAdb(
-        QStringList() << "shell" << "ls" << "-la" << path, ok);
+        QStringList() << "shell" << "ls" << "-la" << resolvedPath, ok);
     if (!ok || output.isEmpty()) {
         return result;
     }
@@ -158,8 +165,23 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
         info.date = match.captured(5);
         info.name = match.captured(6);
 
-        info.isDir = info.permissions.startsWith('d');
         info.isLink = info.permissions.startsWith('l');
+        
+        QString targetPath = path + "/" + info.name;
+        if (info.isLink) {
+            int arrowIdx = info.name.indexOf(" -> ");
+            if (arrowIdx > 0) {
+                info.name = info.name.left(arrowIdx);
+                targetPath = path + "/" + info.name;
+            }
+            
+            bool isDirResult;
+            QString testCmd = QString("test -d %1 && echo 1 || echo 0").arg(targetPath);
+            QString dirCheck = runAdb(QStringList() << "shell" << testCmd, &isDirResult);
+            info.isDir = isDirResult && dirCheck.trimmed() == "1";
+        } else {
+            info.isDir = info.permissions.startsWith('d');
+        }
 
         if (path == "/") {
             info.path = "/" + info.name;
@@ -169,14 +191,6 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
 
         if (info.name == "." || info.name == "..") {
             continue;
-        }
-
-        if (info.isLink) {
-            int arrowIdx = info.name.indexOf(" -> ");
-            if (arrowIdx > 0) {
-                info.name = info.name.left(arrowIdx);
-                info.path = path + "/" + info.name;
-            }
         }
 
         result.append(info);

@@ -76,7 +76,7 @@
         <translation>隐藏窗口</translation>
     </message>
     <message>
-        <source>insynic 1.12 Lite
+        <source>insynic 1.13 Lite
 
 A macOS application for controlling Android devices.
 
@@ -99,7 +99,7 @@ Credits:
 - FFmpeg (video decoding)
 
 Thanks to all the developers of these great tools.</source>
-        <translation>insynic 1.12 Lite
+        <translation>insynic 1.13 Lite
 
 一个用于控制 Android 设备的 macOS 应用程序。
 
