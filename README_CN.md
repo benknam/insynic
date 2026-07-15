@@ -3,7 +3,9 @@
 <div align="center">
 
 <img width="1085" height="517" alt="image" src="https://github.com/user-attachments/assets/b44ffe8b-ca03-4e41-bab1-5d79ecd0992e" />
-<img width="274" height="650" alt="image" src="https://github.com/user-attachments/assets/6e4ecff2-cff6-4f49-87bd-a827c68e6e48" /><img width="267" height="648" alt="image" src="https://github.com/user-attachments/assets/64d0625c-0cf2-47bd-aa80-e8e29ef1e06d" />
+
+<img width="1839" height="1159" alt="image" src="https://github.com/user-attachments/assets/f689e6b5-cef0-40eb-a640-46263ca599e5" />
+1.2预览版.
 
 一个用于控制 Android 设备的桌面应用程序
 
