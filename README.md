@@ -3,13 +3,16 @@
 [简体中文](https://github.com/benknam/insynic/blob/main/README_CN.md)
 
 <div align="center">
-
+-
+  
 <img width="1085" height="517" alt="image" src="https://github.com/user-attachments/assets/b44ffe8b-ca03-4e41-bab1-5d79ecd0992e" />
 
 <img width="1839" height="1159" alt="image" src="https://github.com/user-attachments/assets/f689e6b5-cef0-40eb-a640-46263ca599e5" />
 1.2 Pre-release review.
 
-A desktop application for controlling Android devices
+-
+
+A desktop application for controlling multiple Android devices
 
 [Features](#features) | [Screenshots](#screenshots) | [Installation](#installation--usage) | [Build from Source](#build-from-source) | [Tech Stack](#tech-stack) | [Credits](#credits)
 
