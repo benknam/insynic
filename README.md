@@ -9,8 +9,6 @@
 <img width="1839" height="1159" alt="image" src="https://github.com/user-attachments/assets/f689e6b5-cef0-40eb-a640-46263ca599e5" />
 1.2 Pre-release review.
 
-assets/64d0625c-0cf2-47bd-aa80-e8e29ef1e06d" />
-
 A desktop application for controlling Android devices
 
 [Features](#features) | [Screenshots](#screenshots) | [Installation](#installation--usage) | [Build from Source](#build-from-source) | [Tech Stack](#tech-stack) | [Credits](#credits)
