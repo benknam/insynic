@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
-project(insynic VERSION 1.10 LANGUAGES C CXX)
+project(insynic VERSION 1.21 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD 11)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_definitions(QT_NO_DEBUG_OUTPUT)
+endif()
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
@@ -26,9 +30,9 @@ pkg_check_modules(LIBUSB REQUIRED libusb-1.0)
 
 set(CMAKE_PREFIX_PATH "/usr/local/opt/qtbase/lib/cmake" ${CMAKE_PREFIX_PATH})
 
-find_package(Qt6 COMPONENTS Core Widgets Gui REQUIRED)
+find_package(Qt6 COMPONENTS Core Widgets Gui Concurrent REQUIRED)
 
-set(SCRCPY_ROOT "${CMAKE_SOURCE_DIR}/../scrcpy")
+set(SCRCPY_ROOT "${CMAKE_SOURCE_DIR}/scrcpy")
 set(SCRCPY_APP_SRC "${SCRCPY_ROOT}/app/src")
 
 include_directories(

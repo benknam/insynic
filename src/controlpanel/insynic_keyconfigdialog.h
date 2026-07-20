@@ -4,7 +4,10 @@
 #include <QDialog>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QSlider>
 #include <QLabel>
+#include <QColor>
+#include <QCheckBox>
 #include "insynic_virtualkey.h"
 
 class InsynicKeyConfigDialog : public QDialog
@@ -22,6 +25,7 @@ private slots:
     void onOkClicked();
     void onCancelClicked();
     void onDeleteClicked();
+    void onColorClicked();
 
 signals:
     void keyDeleted();
@@ -32,6 +36,7 @@ protected:
 private:
     void setupUi();
     void updateKeyButton();
+    void updateColorButton();
     
     VirtualKey m_key;
     int m_recordedKeyCode;
@@ -40,6 +45,11 @@ private:
     
     QPushButton *m_keyBtn;
     QSpinBox *m_sizeSpin;
+    QSlider *m_opacitySlider;
+    QLabel *m_opacityValueLabel;
+    QPushButton *m_colorBtn;
+    QColor m_selectedColor;
+    QCheckBox *m_toggleCheckBox;
     QPushButton *m_okBtn;
     QPushButton *m_cancelBtn;
     QPushButton *m_deleteBtn;

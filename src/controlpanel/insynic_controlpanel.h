@@ -7,14 +7,12 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QLabel>
-#include <QComboBox>
-#include <QSpinBox>
-#include <QCheckBox>
+#include <QListWidget>
+#include <QListWidgetItem>
 #include <QMap>
+#include <QMenu>
 
 #include "insynic_scrcpy.h"
-#include "insynic_virtualkey.h"
-#include "insynic_profilemanager.h"
 
 class InsynicControlPanel : public QWidget
 {
@@ -24,82 +22,46 @@ public:
     explicit InsynicControlPanel(QWidget *parent = nullptr);
     ~InsynicControlPanel();
 
-    void setScrcpy(struct insynic_scrcpy *scrcpy);
-    void setConnected(bool connected);
-    bool isConnected() const { return m_connected; }
+    QString currentDevice() const;
+    void retranslateUi();
 
 signals:
-    void connectRequested();
-    void disconnectRequested();
+    void connectRequested(const QString &serial);
+    void disconnectRequested(const QString &serial);
+    void disconnectAllRequested();
+    void connectAllRequested();
     void fileManagerRequested();
-    void deviceSelected(const QString &serial);
-    void otgInputRequested();
     void networkConnectOptionSelected();
+    void refreshRequested();
+    void deviceSettingsRequested(const QString &serial);
 
 public slots:
-    void updateDeviceList(const QStringList &devices);
-    void setSerial(const QString &serial);
-    void setOtgMode(bool enabled);
-    void setNetworkConnected(bool connected);
-
-public slots:
-    void updateProfileCombo();
+    void updateDeviceList(const QStringList &devices, const QMap<QString, QString> &deviceNames = QMap<QString, QString>());
+    void updateConnectionStatus(const QString &serial, bool connected);
+    void updateConnectionMessage(const QString &serial, const QString &message);
 
 private slots:
-    void onBackClicked();
-    void onHomeClicked();
-    void onRecentClicked();
-    void onMenuClicked();
-    void onVolumeUpClicked();
-    void onVolumeDownClicked();
-    void onNotificationClicked();
-    void onSettingsPanelClicked();
-    void onRotateClicked();
-    void onScreenToggleClicked();
-    void onOtgInputClicked();
-    void onAddKeyClicked();
-    void onSaveProfileClicked();
-    void onApplyProfileClicked();
-    void onDeleteProfileClicked();
+    void onConnectClicked();
+    void onDisconnectAllClicked();
+    void onRefreshClicked();
+    void onNetworkConnectClicked();
+    void onDeviceDoubleClicked(QListWidgetItem *item);
+    void onDeviceSelectionChanged();
+    void onDeviceListContextMenu(const QPoint &pos);
 
 private:
     void setupUi();
-    QPushButton *createButton(const QString &text, const char *slot);
+    void updateConnectButtonState();
 
-    struct insynic_scrcpy *m_scrcpy;
-    QString m_serial;
-
-    QComboBox *m_deviceCombo;
+    QListWidget *m_deviceList;
     QPushButton *m_connectBtn;
+    QPushButton *m_disconnectAllBtn;
+    QPushButton *m_refreshBtn;
+    QPushButton *m_networkBtn;
     QPushButton *m_fileManagerBtn;
-
-    QPushButton *m_backBtn;
-    QPushButton *m_homeBtn;
-    QPushButton *m_recentBtn;
-    QPushButton *m_menuBtn;
-    QPushButton *m_notifBtn;
-    QPushButton *m_settingsBtn;
-    QPushButton *m_rotateBtn;
-    QPushButton *m_screenToggleBtn;
-    QPushButton *m_volUpBtn;
-    QPushButton *m_volDownBtn;
-    QPushButton *m_otgBtn;
-
-    bool m_connected;
-    bool m_networkConnected;
-    
-    QPushButton *m_addKeyBtn;
-    QPushButton *m_saveProfileBtn;
-    QComboBox *m_profileCombo;
-    QPushButton *m_applyProfileBtn;
-    QPushButton *m_deleteProfileBtn;
-    
-    InsynicProfileManager *m_profileManager;
-    
-signals:
-    void addKeyRequested();
-    void profileSelected(const QString &name);
-    void saveProfileRequested();
+    QListWidget *m_connectedList;
+    QStringList m_connectedDevices;
+    QMap<QString, QString> m_deviceNames;
 };
 
 #endif

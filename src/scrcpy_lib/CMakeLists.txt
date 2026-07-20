@@ -1,4 +1,4 @@
-set(SCRCPY_ROOT "${CMAKE_SOURCE_DIR}/../scrcpy")
+set(SCRCPY_ROOT "${CMAKE_SOURCE_DIR}/scrcpy")
 set(SCRCPY_APP_SRC "${SCRCPY_ROOT}/app/src")
 
 set(SCRCPY_SOURCES

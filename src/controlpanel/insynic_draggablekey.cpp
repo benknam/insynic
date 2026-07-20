@@ -117,13 +117,21 @@ void InsynicDraggableKey::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     
-    QBrush brush(QColor(255, 100, 100, 150));
+    int alpha = static_cast<int>(m_key.opacity * 2.55);
+    QColor fillColor = m_key.color;
+    fillColor.setAlpha(alpha);
+    QColor borderColor = m_key.color.darker(120);
+    borderColor.setAlpha(qMin(255, alpha + 50));
+    
+    QBrush brush(fillColor);
     painter.setBrush(brush);
-    painter.setPen(QPen(QColor(255, 0, 0, 200), 2));
+    painter.setPen(QPen(borderColor, 2));
     
     painter.drawEllipse(rect().adjusted(2, 2, -2, -2));
     
-    painter.setPen(QPen(Qt::white, 12, Qt::SolidLine, Qt::RoundCap));
+    QColor textColor = m_key.color.lightness() > 128 ? Qt::black : Qt::white;
+    textColor.setAlpha(qMin(255, alpha + 80));
+    painter.setPen(QPen(textColor, 12, Qt::SolidLine, Qt::RoundCap));
     painter.setFont(QFont("Arial", 14, QFont::Bold));
     painter.drawText(rect(), Qt::AlignCenter, m_key.keyName);
 }

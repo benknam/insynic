@@ -20,6 +20,8 @@ public:
                                       QWidget *parent = nullptr);
     ~InsynicFileBrowserDialog();
 
+    void retranslateUi();
+
 public slots:
     void refresh();
 

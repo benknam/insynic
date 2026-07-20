@@ -40,6 +40,7 @@ public:
 
     QStringList listDevices();
     bool connectDevice(const QString &ip, int port);
+    QString getDeviceName(const QString &serial);
 
 signals:
     void operationFinished(bool success, const QString &message);

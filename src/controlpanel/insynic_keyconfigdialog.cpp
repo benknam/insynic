@@ -3,6 +3,8 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QColorDialog>
+#include <QCheckBox>
 
 InsynicKeyConfigDialog::InsynicKeyConfigDialog(const VirtualKey &key, QWidget *parent)
     : QDialog(parent)
@@ -10,6 +12,7 @@ InsynicKeyConfigDialog::InsynicKeyConfigDialog(const VirtualKey &key, QWidget *p
     , m_recordedKeyCode(key.keyCode)
     , m_recordedKeyName(key.keyName)
     , m_isRecording(false)
+    , m_selectedColor(key.color)
 {
     setupUi();
 }
@@ -26,7 +29,7 @@ VirtualKey InsynicKeyConfigDialog::getKey() const
 void InsynicKeyConfigDialog::setupUi()
 {
     setWindowTitle(tr("Configure Key"));
-    setFixedSize(300, 200);
+    setFixedSize(320, 320);
     
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     
@@ -48,6 +51,37 @@ void InsynicKeyConfigDialog::setupUi()
     sizeLayout->addWidget(m_sizeSpin);
     mainLayout->addLayout(sizeLayout);
     
+    QHBoxLayout *opacityLayout = new QHBoxLayout();
+    QLabel *opacityLabel = new QLabel(tr("Opacity:"), this);
+    m_opacitySlider = new QSlider(Qt::Horizontal, this);
+    m_opacitySlider->setRange(1, 100);
+    m_opacitySlider->setValue(m_key.opacity);
+    m_opacityValueLabel = new QLabel(QString("%1%").arg(m_key.opacity), this);
+    m_opacityValueLabel->setMinimumWidth(40);
+    m_opacityValueLabel->setAlignment(Qt::AlignRight);
+    connect(m_opacitySlider, &QSlider::valueChanged, this, [this](int value) {
+        m_opacityValueLabel->setText(QString("%1%").arg(value));
+    });
+    opacityLayout->addWidget(opacityLabel);
+    opacityLayout->addWidget(m_opacitySlider);
+    opacityLayout->addWidget(m_opacityValueLabel);
+    mainLayout->addLayout(opacityLayout);
+    
+    QHBoxLayout *colorLayout = new QHBoxLayout();
+    QLabel *colorLabel = new QLabel(tr("Color:"), this);
+    m_colorBtn = new QPushButton(this);
+    m_colorBtn->setMinimumHeight(32);
+    connect(m_colorBtn, &QPushButton::clicked, this, &InsynicKeyConfigDialog::onColorClicked);
+    colorLayout->addWidget(colorLabel);
+    colorLayout->addWidget(m_colorBtn);
+    mainLayout->addLayout(colorLayout);
+    
+    QHBoxLayout *toggleLayout = new QHBoxLayout();
+    m_toggleCheckBox = new QCheckBox(tr("Toggle"), this);
+    m_toggleCheckBox->setChecked(m_key.toggle);
+    toggleLayout->addWidget(m_toggleCheckBox);
+    mainLayout->addLayout(toggleLayout);
+    
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     m_okBtn = new QPushButton(tr("OK"), this);
     m_cancelBtn = new QPushButton(tr("Cancel"), this);
@@ -63,6 +97,7 @@ void InsynicKeyConfigDialog::setupUi()
     connect(m_deleteBtn, &QPushButton::clicked, this, &InsynicKeyConfigDialog::onDeleteClicked);
     
     updateKeyButton();
+    updateColorButton();
 }
 
 void InsynicKeyConfigDialog::updateKeyButton()
@@ -79,11 +114,32 @@ void InsynicKeyConfigDialog::updateKeyButton()
     }
 }
 
+void InsynicKeyConfigDialog::updateColorButton()
+{
+    QString colorName = m_selectedColor.name();
+    m_colorBtn->setText(colorName);
+    m_colorBtn->setStyleSheet(QString(
+        "background-color: %1;"
+        "color: %2;"
+    ).arg(colorName).arg(
+        m_selectedColor.lightness() > 128 ? "#000000" : "#ffffff"
+    ));
+}
+
 void InsynicKeyConfigDialog::onRecordKeyClicked()
 {
     m_isRecording = true;
     updateKeyButton();
     setFocus();
+}
+
+void InsynicKeyConfigDialog::onColorClicked()
+{
+    QColor color = QColorDialog::getColor(m_selectedColor, this, tr("Select Key Color"));
+    if (color.isValid()) {
+        m_selectedColor = color;
+        updateColorButton();
+    }
 }
 
 void InsynicKeyConfigDialog::keyPressEvent(QKeyEvent *event)
@@ -116,6 +172,9 @@ void InsynicKeyConfigDialog::onOkClicked()
     m_key.keyCode = m_recordedKeyCode;
     m_key.keyName = m_recordedKeyName;
     m_key.size = m_sizeSpin->value();
+    m_key.opacity = m_opacitySlider->value();
+    m_key.color = m_selectedColor;
+    m_key.toggle = m_toggleCheckBox->isChecked();
     accept();
 }
 

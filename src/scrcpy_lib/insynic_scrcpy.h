@@ -3,12 +3,14 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <SDL3/SDL.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct insynic_scrcpy;
+struct sc_screen;
 
 enum insynic_scrcpy_state {
     INSYNIC_SCRCPY_STATE_IDLE = 0,
@@ -32,6 +34,9 @@ struct insynic_scrcpy_config {
     bool audio_enabled;
     bool control_enabled;
     bool turn_screen_off;
+    bool stay_awake;
+    bool power_on;
+    bool disable_screensaver;
     bool otg_mode;
     int window_x;
     int window_y;
@@ -58,8 +63,36 @@ insynic_scrcpy_start(struct insynic_scrcpy *s);
 void
 insynic_scrcpy_stop(struct insynic_scrcpy *s);
 
+void
+insynic_scrcpy_request_stop(struct insynic_scrcpy *s);
+
+bool
+insynic_scrcpy_is_running(struct insynic_scrcpy *s);
+
+bool
+insynic_scrcpy_is_thread_exited(struct insynic_scrcpy *s);
+
+// Block until the scrcpy thread fully exits.
+// This is used as a fallback when polling with insynic_scrcpy_is_thread_exited()
+// times out: the main thread blocks, so SDL_PollEvent() is no longer called,
+// allowing the screen thread's SDL_WaitEvent() to receive events and exit.
+void
+insynic_scrcpy_join(struct insynic_scrcpy *s);
+
 bool
 insynic_scrcpy_process_events(struct insynic_scrcpy *s);
+
+void
+insynic_scrcpy_handle_event(struct insynic_scrcpy *s, const SDL_Event *event);
+
+SDL_Window *
+insynic_scrcpy_get_window(struct insynic_scrcpy *s);
+
+struct sc_screen *
+insynic_scrcpy_get_screen(struct insynic_scrcpy *s);
+
+bool
+insynic_scrcpy_init_main_thread_safe(struct insynic_scrcpy *s);
 
 bool
 insynic_scrcpy_run_main_thread(struct insynic_scrcpy *s);
@@ -116,6 +149,9 @@ bool
 insynic_scrcpy_toggle_display(struct insynic_scrcpy *s);
 
 bool
+insynic_scrcpy_inject_touch_action(struct insynic_scrcpy *s, int x, int y, int width, int height, bool is_down);
+
+bool
 insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height);
 
 bool
@@ -129,6 +165,12 @@ insynic_scrcpy_get_window_position(struct insynic_scrcpy *s, int *x, int *y);
 
 bool
 insynic_scrcpy_get_window_size(struct insynic_scrcpy *s, int *width, int *height);
+
+bool
+insynic_scrcpy_is_screen_initialized(struct insynic_scrcpy *s);
+
+void
+insynic_scrcpy_hide_screen(struct insynic_scrcpy *s);
 
 typedef void (*insynic_scrcpy_event_cb)(void *userdata);
 

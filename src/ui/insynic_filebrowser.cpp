@@ -85,6 +85,21 @@ InsynicFileBrowserDialog::~InsynicFileBrowserDialog()
 }
 
 void
+InsynicFileBrowserDialog::retranslateUi()
+{
+    setWindowTitle(tr("File Manager"));
+    m_upBtn->setText(tr("Up"));
+    m_refreshBtn->setText(tr("Refresh"));
+    m_uploadBtn->setText(tr("Upload"));
+    m_downloadBtn->setText(tr("Download"));
+    m_deleteBtn->setText(tr("Delete"));
+    m_newFolderBtn->setText(tr("New Folder"));
+    
+    QStringList headers = {tr("Name"), tr("Size"), tr("Date"), tr("Permissions")};
+    m_treeWidget->setHeaderLabels(headers);
+}
+
+void
 InsynicFileBrowserDialog::loadPath(const QString &path)
 {
     bool ok;

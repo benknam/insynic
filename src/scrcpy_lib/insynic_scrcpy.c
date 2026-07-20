@@ -72,6 +72,7 @@ struct insynic_scrcpy {
 
     sc_thread thread;
     bool running;
+    bool thread_exited;
 
     bool server_connected;
     bool screen_on;
@@ -87,6 +88,8 @@ struct insynic_scrcpy {
 
 static bool
 insynic_scrcpy_event_watch(void *userdata, SDL_Event *event);
+
+static int s_screen_count = 0;
 
 static void
 set_state(struct insynic_scrcpy *s, enum insynic_scrcpy_state state) {
@@ -124,23 +127,25 @@ insynic_scrcpy_init_sdl(void) {
 static void
 sc_server_on_connection_failed(struct sc_server *server, void *userdata) {
     (void)server;
-    (void)userdata;
-    LOGE("sc_server_on_connection_failed called!");
-    sc_push_event(SC_EVENT_SERVER_CONNECTION_FAILED);
+    struct insynic_scrcpy *s = userdata;
+    LOGE("sc_server_on_connection_failed called for %s!", s->options.serial ? s->options.serial : "unknown");
+    set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
 }
 
 static void
 sc_server_on_connected(struct sc_server *server, void *userdata) {
     (void)server;
-    (void)userdata;
-    sc_push_event(SC_EVENT_SERVER_CONNECTED);
+    struct insynic_scrcpy *s = userdata;
+    LOGI("sc_server_on_connected called for %s!", s->options.serial ? s->options.serial : "unknown");
+    set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
 }
 
 static void
 sc_server_on_disconnected(struct sc_server *server, void *userdata) {
     (void)server;
-    (void)userdata;
-    LOGD("Server disconnected");
+    struct insynic_scrcpy *s = userdata;
+    LOGI("sc_server_on_disconnected called for %s!", s->options.serial ? s->options.serial : "unknown");
+    set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
 }
 
 static void
@@ -243,11 +248,23 @@ insynic_scrcpy_create(const struct insynic_scrcpy_config *config) {
         setenv("ADB", config->adb_path, 1);
         
         char adb_clear_cmd[512];
-        snprintf(adb_clear_cmd, sizeof(adb_clear_cmd), "%s forward --remove-all", config->adb_path);
+        if (config->serial && config->serial[0] != '\0') {
+            snprintf(adb_clear_cmd, sizeof(adb_clear_cmd), "%s -s %s forward --remove-all",
+                     config->adb_path, config->serial);
+        } else {
+            snprintf(adb_clear_cmd, sizeof(adb_clear_cmd), "%s forward --remove-all",
+                     config->adb_path);
+        }
         system(adb_clear_cmd);
         
         char adb_kill_cmd[512];
-        snprintf(adb_kill_cmd, sizeof(adb_kill_cmd), "%s shell pkill -f scrcpy-server", config->adb_path);
+        if (config->serial && config->serial[0] != '\0') {
+            snprintf(adb_kill_cmd, sizeof(adb_kill_cmd), "%s -s %s shell pkill -f scrcpy-server",
+                     config->adb_path, config->serial);
+        } else {
+            snprintf(adb_kill_cmd, sizeof(adb_kill_cmd), "%s shell pkill -f scrcpy-server",
+                     config->adb_path);
+        }
         system(adb_kill_cmd);
         
         SDL_Delay(100);
@@ -266,13 +283,16 @@ insynic_scrcpy_create(const struct insynic_scrcpy_config *config) {
     }
     s->options.control = config->control_enabled;
     s->options.turn_screen_off = config->turn_screen_off;
+    s->options.stay_awake = config->stay_awake;
+    s->options.power_on = config->power_on;
+    s->options.disable_screensaver = config->disable_screensaver;
     s->options.window = config->video_enabled;
     s->options.video_playback = config->video_enabled;
     s->options.render_fit = SC_RENDER_FIT_LETTERBOX;
     s->options.video_codec = SC_CODEC_H264;
     s->options.mipmaps = true;
     if (config->video_bit_rate > 0) {
-        s->options.video_bit_rate = config->video_bit_rate * 1000000;
+        s->options.video_bit_rate = config->video_bit_rate;
     }
     
     if (config->otg_mode) {
@@ -368,10 +388,55 @@ insynic_scrcpy_destroy(struct insynic_scrcpy *s) {
     if (!s) {
         return;
     }
+
+    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_destroy called for %s =====", s->server.serial);
+
+    // Clear state callback first to prevent use-after-free:
+    // destroy may trigger set_state() internally, and the callback's userdata
+    // (InsynicDeviceWindow*) may have been deleted by Qt's deleteLater().
+    s->state_cb = NULL;
+    s->state_cb_userdata = NULL;
+    
+    if (s->screen_initialized) {
+        LOGI("[insynic_scrcpy] Removing event watch");
+        SDL_RemoveEventWatch(insynic_scrcpy_event_watch, s);
+        LOGI("[insynic_scrcpy] Destroying screen");
+        sc_screen_destroy(&s->screen);
+        s->screen_initialized = false;
+        s_screen_count--;
+        
+        if (s_screen_count == 0) {
+            LOGI("[insynic_scrcpy] Last screen destroyed, quitting SDL video/audio");
+            SDL_QuitSubSystem(SDL_INIT_VIDEO);
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        }
+    }
+    
+    LOGI("[insynic_scrcpy] Destroying controller");
+    sc_controller_destroy(&s->controller);
+    
+    LOGI("[insynic_scrcpy] Destroying file pusher");
+    if (s->file_pusher_initialized) {
+        sc_file_pusher_destroy(&s->file_pusher);
+    }
+    
+    LOGI("[insynic_scrcpy] Destroying server");
+    sc_server_destroy(&s->server);
+    
+    LOGI("[insynic_scrcpy] Destroying cond and mutex");
     sc_cond_destroy(&s->server_cond);
     sc_mutex_destroy(&s->server_mutex);
-    free((char *)s->options.serial);
+    
+    if (s->options.serial) {
+        char *serial_copy = (char *)s->options.serial;
+        free(serial_copy);
+        s->options.serial = NULL;
+    }
+    
+    LOGI("[insynic_scrcpy] Freeing insynic_scrcpy struct");
     free(s);
+    
+    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_destroy completed =====");
 }
 
 static void
@@ -454,8 +519,6 @@ insynic_scrcpy_init_main_thread(void *data) {
         const char *window_title =
             opts->window_title ? opts->window_title : info->device_name;
 
-        SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
-
         if (!SDL_InitSubSystem(SDL_INIT_VIDEO)) {
             LOGE("Could not initialize SDL video: %s", SDL_GetError());
             return;
@@ -500,6 +563,7 @@ insynic_scrcpy_init_main_thread(void *data) {
             return;
         }
         s->screen_initialized = true;
+        s_screen_count++;
 
         SDL_AddEventWatch(insynic_scrcpy_event_watch, s);
 
@@ -546,6 +610,15 @@ insynic_scrcpy_init_main_thread(void *data) {
     sc_mutex_lock(&s->server_mutex);
     sc_cond_signal(&s->server_cond);
     sc_mutex_unlock(&s->server_mutex);
+}
+
+bool
+insynic_scrcpy_init_main_thread_safe(struct insynic_scrcpy *s) {
+    if (!s || s->window_ready) {
+        return s && s->window_ready;
+    }
+    insynic_scrcpy_init_main_thread(s);
+    return s->window_ready;
 }
 
 static int
@@ -640,61 +713,70 @@ insynic_scrcpy_thread(void *data) {
 
 end:
     s->running = false;
+    LOGI("[insynic_scrcpy] Thread cleanup started for %s", s->server.serial);
 
     if (s->controller_started) {
+        LOGI("[insynic_scrcpy] Stopping controller for %s", s->server.serial);
         sc_controller_stop(&s->controller);
     }
     if (s->file_pusher_initialized) {
+        LOGI("[insynic_scrcpy] Stopping file pusher for %s", s->server.serial);
         sc_file_pusher_stop(&s->file_pusher);
     }
     if (s->screen_initialized) {
+        LOGI("[insynic_scrcpy] Interrupting screen for %s", s->server.serial);
         sc_screen_interrupt(&s->screen);
     }
 
     if (s->server_started) {
+        LOGI("[insynic_scrcpy] Stopping server for %s", s->server.serial);
         sc_server_stop(&s->server);
     }
 
-    if (s->screen_initialized) {
-        sc_screen_hide_window(&s->screen);
-    }
+    // NOTE: Do NOT call sc_screen_hide_window() here!
+    // On macOS, window operations (including input method system callbacks)
+    // must be performed on the main thread. This thread is NOT the main thread,
+    // so calling sc_screen_hide_window() here will cause _dispatch_assert_queue_fail.
+    // The hide_window call is handled in the main thread via insynic_scrcpy_hide_screen().
 
     if (s->video_demuxer_started) {
+        LOGI("[insynic_scrcpy] Joining video demuxer for %s", s->server.serial);
         sc_demuxer_join(&s->video_demuxer);
+        LOGI("[insynic_scrcpy] Video demuxer joined for %s", s->server.serial);
     }
     if (s->audio_demuxer_started) {
+        LOGI("[insynic_scrcpy] Joining audio demuxer for %s", s->server.serial);
         sc_demuxer_join(&s->audio_demuxer);
+        LOGI("[insynic_scrcpy] Audio demuxer joined for %s", s->server.serial);
     }
 
     if (s->screen_initialized) {
+        LOGI("[insynic_scrcpy] Joining screen for %s", s->server.serial);
         sc_screen_join(&s->screen);
-        sc_screen_destroy(&s->screen);
-        SDL_QuitSubSystem(SDL_INIT_VIDEO);
-        SDL_QuitSubSystem(SDL_INIT_AUDIO);
-        SDL_RemoveEventWatch(insynic_scrcpy_event_watch, s);
+        LOGI("[insynic_scrcpy] Screen joined for %s", s->server.serial);
     }
 
     if (s->controller_started) {
+        LOGI("[insynic_scrcpy] Joining controller for %s", s->server.serial);
         sc_controller_join(&s->controller);
+        LOGI("[insynic_scrcpy] Controller joined for %s", s->server.serial);
     }
-    sc_controller_destroy(&s->controller);
 
     if (s->file_pusher_initialized) {
         sc_file_pusher_join(&s->file_pusher);
-        sc_file_pusher_destroy(&s->file_pusher);
     }
 
     if (s->server_started) {
         sc_server_join(&s->server);
     }
 
-    sc_server_destroy(&s->server);
-    sc_main_thread_destroy();
-
+    s->thread_exited = true;
+    LOGI("[insynic_scrcpy] Thread fully exited (all joins completed)");
     return 0;
 
 server_fail:
     sc_server_destroy(&s->server);
+    s->thread_exited = true;
     return -1;
 }
 
@@ -716,6 +798,8 @@ insynic_scrcpy_otg_main_thread(void *data) {
     }
 
     s->running = false;
+    s->thread_exited = true;
+    LOGI("[insynic_scrcpy] OTG thread fully exited");
 
     return NULL;
 }
@@ -731,7 +815,7 @@ insynic_scrcpy_otg_thread(void *data) {
         LOGE("Failed to schedule OTG initialization on main thread");
         set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
         s->running = false;
-        sc_main_thread_destroy();
+        LOGI("[insynic_scrcpy] OTG thread error, not destroying main thread (global resource)");
         return -1;
     }
 
@@ -739,29 +823,36 @@ insynic_scrcpy_otg_thread(void *data) {
         SDL_Delay(100);
     }
 
-    sc_main_thread_destroy();
-
+    LOGI("[insynic_scrcpy] OTG thread exiting normally, not destroying main thread (global resource)");
     return 0;
 }
 
 bool
 insynic_scrcpy_start(struct insynic_scrcpy *s) {
     if (s->running) {
+        LOGW("[insynic_scrcpy] start() called but already running for %s", s->server.serial);
         return false;
     }
     s->running = true;
+    s->thread_exited = false;
+
+    LOGI("[insynic_scrcpy] Starting scrcpy thread for %s", s->server.serial);
 
     if (s->options.otg) {
         if (!sc_thread_create(&s->thread, insynic_scrcpy_otg_thread, "insynic_otg", s)) {
             s->running = false;
+            LOGE("[insynic_scrcpy] Failed to create OTG thread for %s", s->server.serial);
             return false;
         }
     } else {
         if (!sc_thread_create(&s->thread, insynic_scrcpy_thread, "insynic", s)) {
             s->running = false;
+            LOGE("[insynic_scrcpy] Failed to create scrcpy thread for %s", s->server.serial);
             return false;
         }
     }
+
+    LOGI("[insynic_scrcpy] Thread created successfully for %s", s->server.serial);
 
     return true;
 }
@@ -807,55 +898,124 @@ insynic_scrcpy_run_main_thread(struct insynic_scrcpy *s) {
 
 void
 insynic_scrcpy_stop(struct insynic_scrcpy *s) {
+    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_stop called for %s =====", s->server.serial);
+    
     if (!s->running) {
+        LOGI("[insynic_scrcpy] Already stopped, returning");
         return;
     }
     
+    LOGI("[insynic_scrcpy] Setting running = false");
     s->running = false;
     
-    sc_push_event(SDL_EVENT_QUIT);
+    LOGI("[insynic_scrcpy] Signaling server cond");
+    sc_mutex_lock(&s->server_mutex);
+    sc_cond_signal(&s->server_cond);
+    sc_mutex_unlock(&s->server_mutex);
+    
+    LOGI("[insynic_scrcpy] Joining scrcpy thread...");
+    sc_thread_join(&s->thread, NULL);
+    LOGI("[insynic_scrcpy] Thread joined successfully");
+    
+    LOGI("[insynic_scrcpy] Stopping main thread");
+    sc_main_thread_stop();
+    
+    LOGI("[insynic_scrcpy] Setting state to DISCONNECTED");
+    set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
+    
+    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_stop completed =====");
+}
+
+void
+insynic_scrcpy_request_stop(struct insynic_scrcpy *s) {
+    if (!s || !s->running) {
+        return;
+    }
+    
+    LOGI("[insynic_scrcpy] Requesting stop for %s", s->server.serial);
+    s->running = false;
     
     sc_mutex_lock(&s->server_mutex);
     sc_cond_signal(&s->server_cond);
     sc_mutex_unlock(&s->server_mutex);
     
-    SDL_PumpEvents();
-    insynic_scrcpy_process_events(s);
-    
+    if (s->screen_initialized) {
+        sc_screen_interrupt(&s->screen);
+        SDL_Event quit_event;
+        quit_event.type = SDL_EVENT_QUIT;
+        SDL_PushEvent(&quit_event);
+    }
+}
+
+bool
+insynic_scrcpy_is_running(struct insynic_scrcpy *s) {
+    return s && s->running;
+}
+
+bool
+insynic_scrcpy_is_thread_exited(struct insynic_scrcpy *s) {
+    return s && s->thread_exited;
+}
+
+void
+insynic_scrcpy_join(struct insynic_scrcpy *s) {
+    if (!s) {
+        return;
+    }
+    LOGI("[insynic_scrcpy] join: blocking until thread exits for %s", s->server.serial);
     sc_thread_join(&s->thread, NULL);
-    
-    sc_main_thread_stop();
-    
-    set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
+    s->thread_exited = true;
+    LOGI("[insynic_scrcpy] join: thread fully exited for %s", s->server.serial);
 }
 
 bool
 insynic_scrcpy_process_events(struct insynic_scrcpy *s) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        switch (event.type) {
-            case SC_EVENT_SERVER_CONNECTED:
-                if (!s->window_ready) {
-                    insynic_scrcpy_init_main_thread(s);
-                }
-                set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
-                break;
-            case SC_EVENT_SERVER_CONNECTION_FAILED:
-                LOGE("Server connection failed");
-                set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
-                break;
-            case SC_EVENT_DEVICE_DISCONNECTED:
-                LOGW("Device disconnected");
-                set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
-                break;
-            default:
-                if (s->screen_initialized) {
-                    sc_screen_handle_event(&s->screen, &event);
-                }
-                break;
-        }
+        insynic_scrcpy_handle_event(s, &event);
     }
     return true;
+}
+
+void
+insynic_scrcpy_handle_event(struct insynic_scrcpy *s, const SDL_Event *event) {
+    switch (event->type) {
+        case SC_EVENT_SERVER_CONNECTED:
+            if (!s->window_ready) {
+                insynic_scrcpy_init_main_thread(s);
+            }
+            set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
+            break;
+        case SC_EVENT_SERVER_CONNECTION_FAILED:
+            LOGE("Server connection failed");
+            set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
+            break;
+        case SC_EVENT_DEVICE_DISCONNECTED:
+            LOGW("Device disconnected");
+            set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
+            break;
+        default:
+            if (s->screen_initialized) {
+                sc_screen_handle_event(&s->screen, event);
+            }
+            break;
+    }
+}
+
+SDL_Window *
+insynic_scrcpy_get_window(struct insynic_scrcpy *s) {
+    if (!s || !s->screen_initialized) {
+        return NULL;
+    }
+    return s->screen.window;
+}
+
+struct sc_screen *
+insynic_scrcpy_get_screen(struct insynic_scrcpy *s) {
+    if (!s || !s->screen_initialized) {
+        return NULL;
+    }
+    return &s->screen;
 }
 
 enum insynic_scrcpy_state
@@ -1000,40 +1160,32 @@ insynic_scrcpy_toggle_display(struct insynic_scrcpy *s) {
 }
 
 bool
-insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height) {
+insynic_scrcpy_inject_touch_action(struct insynic_scrcpy *s, int x, int y, int width, int height, bool is_down) {
     if (!s->controller_started) {
         return false;
     }
 
-    struct sc_control_msg msg_down;
-    msg_down.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
-    msg_down.inject_touch_event.action = AMOTION_EVENT_ACTION_DOWN;
-    msg_down.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_down.inject_touch_event.buttons = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_down.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
-    msg_down.inject_touch_event.position.point.x = x;
-    msg_down.inject_touch_event.position.point.y = y;
-    msg_down.inject_touch_event.position.screen_size.width = width;
-    msg_down.inject_touch_event.position.screen_size.height = height;
-    msg_down.inject_touch_event.pressure = 1.0f;
-    if (!sc_controller_push_msg(&s->controller, &msg_down)) {
+    struct sc_control_msg msg;
+    msg.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
+    msg.inject_touch_event.action = is_down ? AMOTION_EVENT_ACTION_DOWN : AMOTION_EVENT_ACTION_UP;
+    msg.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
+    msg.inject_touch_event.buttons = is_down ? AMOTION_EVENT_BUTTON_PRIMARY : 0;
+    msg.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
+    msg.inject_touch_event.position.point.x = x;
+    msg.inject_touch_event.position.point.y = y;
+    msg.inject_touch_event.position.screen_size.width = width;
+    msg.inject_touch_event.position.screen_size.height = height;
+    msg.inject_touch_event.pressure = is_down ? 1.0f : 0.0f;
+    return sc_controller_push_msg(&s->controller, &msg);
+}
+
+bool
+insynic_scrcpy_inject_touch(struct insynic_scrcpy *s, int x, int y, int width, int height) {
+    if (!insynic_scrcpy_inject_touch_action(s, x, y, width, height, true)) {
         return false;
     }
-
     SDL_Delay(50);
-
-    struct sc_control_msg msg_up;
-    msg_up.type = SC_CONTROL_MSG_TYPE_INJECT_TOUCH_EVENT;
-    msg_up.inject_touch_event.action = AMOTION_EVENT_ACTION_UP;
-    msg_up.inject_touch_event.action_button = AMOTION_EVENT_BUTTON_PRIMARY;
-    msg_up.inject_touch_event.buttons = 0;
-    msg_up.inject_touch_event.pointer_id = SC_POINTER_ID_GENERIC_FINGER;
-    msg_up.inject_touch_event.position.point.x = x;
-    msg_up.inject_touch_event.position.point.y = y;
-    msg_up.inject_touch_event.position.screen_size.width = width;
-    msg_up.inject_touch_event.position.screen_size.height = height;
-    msg_up.inject_touch_event.pressure = 0.0f;
-    return sc_controller_push_msg(&s->controller, &msg_up);
+    return insynic_scrcpy_inject_touch_action(s, x, y, width, height, false);
 }
 
 bool
@@ -1068,4 +1220,16 @@ insynic_scrcpy_get_window_size(struct insynic_scrcpy *s, int *width, int *height
     }
     SDL_GetWindowSize(s->screen.window, width, height);
     return true;
+}
+
+bool
+insynic_scrcpy_is_screen_initialized(struct insynic_scrcpy *s) {
+    return s && s->screen_initialized;
+}
+
+void
+insynic_scrcpy_hide_screen(struct insynic_scrcpy *s) {
+    if (s && s->screen_initialized && s->screen.window) {
+        SDL_HideWindow(s->screen.window);
+    }
 }

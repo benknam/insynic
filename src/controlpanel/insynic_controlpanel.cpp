@@ -2,18 +2,12 @@
 
 #include <QStyle>
 #include <QIcon>
-#include <QProcess>
 #include <QCoreApplication>
 #include <QDir>
-#include "insynic_saveprofiledialog.h"
-#include <QMessageBox>
+#include <QDebug>
 
 InsynicControlPanel::InsynicControlPanel(QWidget *parent)
     : QWidget(parent)
-    , m_scrcpy(nullptr)
-    , m_connected(false)
-    , m_networkConnected(false)
-    , m_profileManager(new InsynicProfileManager(this))
 {
     setupUi();
 }
@@ -23,389 +17,418 @@ InsynicControlPanel::~InsynicControlPanel()
 }
 
 void
-InsynicControlPanel::setScrcpy(struct insynic_scrcpy *scrcpy)
-{
-    m_scrcpy = scrcpy;
-}
-
-void
-InsynicControlPanel::setConnected(bool connected)
-{
-    m_connected = connected;
-    m_connectBtn->setText(connected ? tr("Disconnect") : tr("Connect"));
-
-    m_backBtn->setEnabled(connected);
-    m_homeBtn->setEnabled(connected);
-    m_recentBtn->setEnabled(connected);
-    m_menuBtn->setEnabled(connected);
-    m_notifBtn->setEnabled(connected);
-    m_settingsBtn->setEnabled(connected);
-    m_rotateBtn->setEnabled(connected);
-    m_screenToggleBtn->setEnabled(connected);
-    m_volUpBtn->setEnabled(connected);
-    m_volDownBtn->setEnabled(connected);
-    m_otgBtn->setEnabled(connected && !m_networkConnected);
-    m_addKeyBtn->setEnabled(connected);
-    m_saveProfileBtn->setEnabled(connected);
-    m_applyProfileBtn->setEnabled(connected);
-    m_deleteProfileBtn->setEnabled(connected);
-}
-
-void
-InsynicControlPanel::updateDeviceList(const QStringList &devices)
-{
-    QString current = m_deviceCombo->currentData().toString();
-    m_deviceCombo->clear();
-    m_deviceCombo->addItem(tr("Auto-select"), "");
-    m_deviceCombo->addItem(tr("Network Connection"), "__network__");
-    for (const QString &dev : devices) {
-        m_deviceCombo->addItem(dev, dev);
-    }
-    if (current != "__network__") {
-        int idx = m_deviceCombo->findData(current);
-        if (idx >= 0) {
-            m_deviceCombo->setCurrentIndex(idx);
-        }
-    }
-}
-
-void
-InsynicControlPanel::setSerial(const QString &serial)
-{
-    m_serial = serial;
-}
-
-QPushButton *
-InsynicControlPanel::createButton(const QString &text, const char *slot)
-{
-    QPushButton *btn = new QPushButton(text, this);
-    btn->setMinimumHeight(36);
-    connect(btn, SIGNAL(clicked()), this, slot);
-    return btn;
-}
-
-void
 InsynicControlPanel::setupUi()
 {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(12, 12, 12, 12);
-    mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(8, 8, 8, 8);
+    mainLayout->setSpacing(8);
 
     QLabel *titleLabel = new QLabel(tr("insynic"), this);
     QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(18);
+    titleFont.setPointSize(16);
     titleFont.setBold(true);
     titleLabel->setFont(titleFont);
     titleLabel->setAlignment(Qt::AlignCenter);
     mainLayout->addWidget(titleLabel);
 
-    QGroupBox *connGroup = new QGroupBox(tr("Connection"), this);
-    QVBoxLayout *connLayout = new QVBoxLayout(connGroup);
-    connLayout->setContentsMargins(0, 0, 0, 0);
-    connLayout->setSpacing(6);
+    QGroupBox *devicesGroup = new QGroupBox(tr("Devices"), this);
+    QVBoxLayout *devicesLayout = new QVBoxLayout(devicesGroup);
+    devicesLayout->setContentsMargins(6, 6, 6, 6);
+    devicesLayout->setSpacing(4);
 
-    m_deviceCombo = new QComboBox(connGroup);
-    m_deviceCombo->addItem(tr("Auto-select"), "");
-    m_deviceCombo->addItem(tr("Network Connection"), "__network__");
-    connect(m_deviceCombo,
-            QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int idx) {
-        QString data = m_deviceCombo->itemData(idx).toString();
-        if (data == "__network__") {
-            emit networkConnectOptionSelected();
-        } else {
-            emit deviceSelected(data);
-        }
-    });
-    connLayout->addWidget(m_deviceCombo);
+    m_deviceList = new QListWidget(devicesGroup);
+    m_deviceList->setMinimumHeight(100);
+    m_deviceList->setMaximumHeight(180);
+    m_deviceList->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_deviceList->setStyleSheet(
+        "QListWidget { background-color: #2a2a2a; color: #e0e0e0; "
+        "border-radius: 4px; border: 1px solid #444; }"
+        "QListWidget::item { padding: 4px; }"
+        "QListWidget::item:selected { background-color: #4a4a4a; }"
+    );
+    connect(m_deviceList, &QListWidget::itemDoubleClicked,
+            this, &InsynicControlPanel::onDeviceDoubleClicked);
+    connect(m_deviceList, &QListWidget::currentItemChanged,
+            this, &InsynicControlPanel::onDeviceSelectionChanged);
+    connect(m_deviceList, &QListWidget::customContextMenuRequested,
+            this, &InsynicControlPanel::onDeviceListContextMenu);
+    devicesLayout->addWidget(m_deviceList);
 
-    m_connectBtn = new QPushButton(tr("Connect"), connGroup);
-    m_connectBtn->setMinimumHeight(40);
+    QHBoxLayout *btnRow1 = new QHBoxLayout();
+    btnRow1->setSpacing(4);
+
+    m_connectBtn = new QPushButton(tr("Connect"), devicesGroup);
+    m_connectBtn->setMinimumHeight(32);
     m_connectBtn->setStyleSheet(
         "QPushButton { background-color: #4CAF50; color: white; "
-        "border-radius: 6px; font-weight: bold; }"
+        "border-radius: 4px; font-weight: bold; padding: 4px 8px; }"
         "QPushButton:hover { background-color: #45a049; }"
-        "QPushButton:disabled { background-color: #cccccc; }"
+        "QPushButton:disabled { background-color: #333; color: #666; }"
     );
-    connect(m_connectBtn, &QPushButton::clicked, this, [this]() {
-        if (m_connected) {
-            emit disconnectRequested();
-        } else {
-            emit connectRequested();
-        }
-    });
-    connLayout->addWidget(m_connectBtn);
+    connect(m_connectBtn, &QPushButton::clicked, this, &InsynicControlPanel::onConnectClicked);
+    btnRow1->addWidget(m_connectBtn);
 
-    m_fileManagerBtn = new QPushButton(tr("File Manager"), connGroup);
-    m_fileManagerBtn->setMinimumHeight(36);
+    m_refreshBtn = new QPushButton(tr("Refresh"), devicesGroup);
+    m_refreshBtn->setMinimumHeight(32);
+    m_refreshBtn->setStyleSheet(
+        "QPushButton { background-color: #2196F3; color: white; "
+        "border-radius: 4px; padding: 4px 8px; }"
+        "QPushButton:hover { background-color: #1976D2; }"
+    );
+    connect(m_refreshBtn, &QPushButton::clicked, this, &InsynicControlPanel::onRefreshClicked);
+    btnRow1->addWidget(m_refreshBtn);
+
+    devicesLayout->addLayout(btnRow1);
+
+    QHBoxLayout *btnRow2 = new QHBoxLayout();
+    btnRow2->setSpacing(4);
+
+    m_networkBtn = new QPushButton(tr("Network"), devicesGroup);
+    m_networkBtn->setMinimumHeight(32);
+    m_networkBtn->setStyleSheet(
+        "QPushButton { background-color: #9C27B0; color: white; "
+        "border-radius: 4px; padding: 4px 8px; }"
+        "QPushButton:hover { background-color: #7B1FA2; }"
+    );
+    connect(m_networkBtn, &QPushButton::clicked, this, &InsynicControlPanel::onNetworkConnectClicked);
+    btnRow2->addWidget(m_networkBtn);
+
+    m_disconnectAllBtn = new QPushButton(tr("Disconnect All"), devicesGroup);
+    m_disconnectAllBtn->setMinimumHeight(32);
+    m_disconnectAllBtn->setEnabled(false);
+    m_disconnectAllBtn->setStyleSheet(
+        "QPushButton { background-color: #f44336; color: white; "
+        "border-radius: 4px; padding: 4px 8px; }"
+        "QPushButton:hover { background-color: #d32f2f; }"
+        "QPushButton:disabled { background-color: #333; color: #666; }"
+    );
+    connect(m_disconnectAllBtn, &QPushButton::clicked, this, &InsynicControlPanel::onDisconnectAllClicked);
+    btnRow2->addWidget(m_disconnectAllBtn);
+
+    devicesLayout->addLayout(btnRow2);
+
+    m_fileManagerBtn = new QPushButton(tr("File Manager"), devicesGroup);
+    m_fileManagerBtn->setMinimumHeight(32);
+    m_fileManagerBtn->setStyleSheet(
+        "QPushButton { background-color: #FF9800; color: white; "
+        "border-radius: 4px; padding: 4px 8px; }"
+        "QPushButton:hover { background-color: #F57C00; }"
+    );
     connect(m_fileManagerBtn, &QPushButton::clicked, this,
             &InsynicControlPanel::fileManagerRequested);
-    connLayout->addWidget(m_fileManagerBtn);
+    devicesLayout->addWidget(m_fileManagerBtn);
 
-    mainLayout->addWidget(connGroup);
+    mainLayout->addWidget(devicesGroup);
 
-    QGroupBox *keysGroup = new QGroupBox(tr("Android Keys"), this);
-    QHBoxLayout *keysLayout = new QHBoxLayout(keysGroup);
-    keysLayout->setSpacing(6);
+    QGroupBox *connectedGroup = new QGroupBox(tr("Connected Devices"), this);
+    QVBoxLayout *connectedLayout = new QVBoxLayout(connectedGroup);
+    connectedLayout->setContentsMargins(6, 6, 6, 6);
 
-    m_backBtn = createButton(tr("Back"), SLOT(onBackClicked()));
-    m_homeBtn = createButton(tr("Home"), SLOT(onHomeClicked()));
-    m_recentBtn = createButton(tr("Task"), SLOT(onRecentClicked()));
-    m_menuBtn = createButton(tr("Menu"), SLOT(onMenuClicked()));
-
-    keysLayout->addWidget(m_backBtn);
-    keysLayout->addWidget(m_homeBtn);
-    keysLayout->addWidget(m_recentBtn);
-    keysLayout->addWidget(m_menuBtn);
-
-    mainLayout->addWidget(keysGroup);
-
-    QGroupBox *systemGroup = new QGroupBox(tr("System"), this);
-    QGridLayout *systemLayout = new QGridLayout(systemGroup);
-    systemLayout->setSpacing(6);
-
-    m_notifBtn = createButton(tr("Notifications"), SLOT(onNotificationClicked()));
-    m_settingsBtn = createButton(tr("Quick Settings"),
-                                 SLOT(onSettingsPanelClicked()));
-    m_rotateBtn = createButton(tr("Rotate"), SLOT(onRotateClicked()));
-    m_screenToggleBtn = createButton(tr("Screen On/Off"), SLOT(onScreenToggleClicked()));
-    m_volUpBtn = createButton(tr("Volume Up"), SLOT(onVolumeUpClicked()));
-    m_volDownBtn = createButton(tr("Volume Down"), SLOT(onVolumeDownClicked()));
-
-    systemLayout->addWidget(m_notifBtn, 0, 0);
-    systemLayout->addWidget(m_settingsBtn, 0, 1);
-    systemLayout->addWidget(m_rotateBtn, 1, 0);
-    systemLayout->addWidget(m_screenToggleBtn, 1, 1);
-    systemLayout->addWidget(m_volUpBtn, 2, 0);
-    systemLayout->addWidget(m_volDownBtn, 2, 1);
-
-    mainLayout->addWidget(systemGroup);
-
-    QGroupBox *utilitiesGroup = new QGroupBox(tr("Utilities"), this);
-    QVBoxLayout *utilitiesLayout = new QVBoxLayout(utilitiesGroup);
-    utilitiesLayout->setSpacing(6);
-
-    m_addKeyBtn = new QPushButton(tr("Add Key"), utilitiesGroup);
-    m_addKeyBtn->setMinimumHeight(36);
-    connect(m_addKeyBtn, &QPushButton::clicked, this, &InsynicControlPanel::onAddKeyClicked);
-    utilitiesLayout->addWidget(m_addKeyBtn);
-
-    m_saveProfileBtn = new QPushButton(tr("Save Profile"), utilitiesGroup);
-    m_saveProfileBtn->setMinimumHeight(36);
-    connect(m_saveProfileBtn, &QPushButton::clicked, this, &InsynicControlPanel::onSaveProfileClicked);
-    utilitiesLayout->addWidget(m_saveProfileBtn);
-
-    m_profileCombo = new QComboBox(utilitiesGroup);
-    updateProfileCombo();
-    utilitiesLayout->addWidget(m_profileCombo);
-
-    QHBoxLayout *profileBtnLayout = new QHBoxLayout();
-    m_applyProfileBtn = new QPushButton(tr("Apply"), utilitiesGroup);
-    m_applyProfileBtn->setMinimumHeight(30);
-    m_deleteProfileBtn = new QPushButton(tr("Delete"), utilitiesGroup);
-    m_deleteProfileBtn->setMinimumHeight(30);
-    
-    profileBtnLayout->addWidget(m_applyProfileBtn);
-    profileBtnLayout->addWidget(m_deleteProfileBtn);
-    utilitiesLayout->addLayout(profileBtnLayout);
-
-    connect(m_applyProfileBtn, &QPushButton::clicked, this, &InsynicControlPanel::onApplyProfileClicked);
-    connect(m_deleteProfileBtn, &QPushButton::clicked, this, &InsynicControlPanel::onDeleteProfileClicked);
-
-    mainLayout->addWidget(utilitiesGroup);
-
-    m_otgBtn = new QPushButton(tr("OTG Input"), this);
-    m_otgBtn->setMinimumHeight(40);
-    m_otgBtn->setStyleSheet(
-        "QPushButton { background-color: #2196F3; color: white; "
-        "border-radius: 6px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #1976D2; }"
-        "QPushButton:disabled { background-color: #cccccc; }"
+    m_connectedList = new QListWidget(connectedGroup);
+    m_connectedList->setMinimumHeight(60);
+    m_connectedList->setMaximumHeight(180);
+    m_connectedList->setWordWrap(true);
+    m_connectedList->setTextElideMode(Qt::ElideNone);
+    m_connectedList->setUniformItemSizes(false);
+    m_connectedList->setStyleSheet(
+        "QListWidget { background-color: #2a2a2a; color: #e0e0e0; "
+        "border-radius: 4px; border: 1px solid #444; }"
+        "QListWidget::item { padding: 3px; }"
+        "QListWidget::item:selected { background-color: #4a4a4a; }"
     );
-    connect(m_otgBtn, &QPushButton::clicked, this,
-            &InsynicControlPanel::onOtgInputClicked);
-    mainLayout->addWidget(m_otgBtn);
+    connectedLayout->addWidget(m_connectedList);
 
-    mainLayout->addStretch();
+    mainLayout->addWidget(connectedGroup);
 
-    setConnected(false);
     setFixedWidth(260);
+    setStyleSheet(
+        "QGroupBox { color: #e0e0e0; border: 1px solid #555; "
+        "border-radius: 4px; margin-top: 6px; padding-top: 6px; }"
+        "QGroupBox::title { left: 6px; padding: 0 3px; font-size: 12px; }"
+        "QLabel { color: #e0e0e0; }"
+        "QWidget { background-color: #1e1e1e; }"
+    );
 }
 
-void
-InsynicControlPanel::onBackClicked()
+QString
+InsynicControlPanel::currentDevice() const
 {
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_back(m_scrcpy);
+    QListWidgetItem *item = m_deviceList->currentItem();
+    if (item) {
+        QString serial = item->data(Qt::UserRole).toString();
+        if (!serial.isEmpty()) {
+            return serial;
+        }
+        return item->text();
     }
+    return QString();
 }
 
 void
-InsynicControlPanel::onHomeClicked()
+InsynicControlPanel::updateConnectButtonState()
 {
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_home(m_scrcpy);
-    }
-}
+    QString serial = currentDevice();
+    bool isConnected = m_connectedDevices.contains(serial);
 
-void
-InsynicControlPanel::onRecentClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_recent(m_scrcpy);
-    }
-}
-
-
-
-void
-InsynicControlPanel::onVolumeUpClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_volume_up(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onVolumeDownClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_volume_down(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onNotificationClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_expand_notification_panel(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onSettingsPanelClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_expand_settings_panel(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onRotateClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_rotate_device(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onScreenToggleClicked()
-{
-    if (m_scrcpy) {
-        insynic_scrcpy_toggle_display(m_scrcpy);
-    }
-}
-
-void
-InsynicControlPanel::onOtgInputClicked()
-{
-    emit otgInputRequested();
-}
-
-void
-InsynicControlPanel::setOtgMode(bool enabled)
-{
-    if (enabled) {
-        m_otgBtn->setText(tr("OTG Input ON\n(Cmd+Q to exit)"));
-        m_otgBtn->setStyleSheet(
+    if (isConnected) {
+        m_connectBtn->setText(tr("Disconnect"));
+        m_connectBtn->setStyleSheet(
             "QPushButton { background-color: #f44336; color: white; "
-            "border-radius: 6px; font-weight: bold; }"
+            "border-radius: 4px; font-weight: bold; padding: 4px 8px; }"
             "QPushButton:hover { background-color: #d32f2f; }"
-            "QPushButton:disabled { background-color: #cccccc; }"
+            "QPushButton:disabled { background-color: #333; color: #666; }"
         );
     } else {
-        m_otgBtn->setText(tr("OTG Input"));
-        m_otgBtn->setStyleSheet(
-            "QPushButton { background-color: #2196F3; color: white; "
-            "border-radius: 6px; font-weight: bold; }"
-            "QPushButton:hover { background-color: #1976D2; }"
-            "QPushButton:disabled { background-color: #cccccc; }"
+        m_connectBtn->setText(tr("Connect"));
+        m_connectBtn->setStyleSheet(
+            "QPushButton { background-color: #4CAF50; color: white; "
+            "border-radius: 4px; font-weight: bold; padding: 4px 8px; }"
+            "QPushButton:hover { background-color: #45a049; }"
+            "QPushButton:disabled { background-color: #333; color: #666; }"
         );
     }
+
+    m_connectBtn->setEnabled(!serial.isEmpty());
 }
 
 void
-InsynicControlPanel::setNetworkConnected(bool connected)
+InsynicControlPanel::onConnectClicked()
 {
-    m_networkConnected = connected;
-    if (m_connected) {
-        m_otgBtn->setEnabled(!connected);
+    QString serial = currentDevice();
+    qDebug() << "[ControlPanel] onConnectClicked, current device:" << serial;
+
+    if (serial.isEmpty() && m_deviceList->count() > 0) {
+        QListWidgetItem *firstItem = m_deviceList->item(0);
+        serial = firstItem->data(Qt::UserRole).toString();
+        if (serial.isEmpty()) {
+            serial = firstItem->text();
+        }
+        qDebug() << "[ControlPanel] No selection, using first device:" << serial;
+    }
+    if (!serial.isEmpty()) {
+        if (m_connectedDevices.contains(serial)) {
+            qDebug() << "[ControlPanel] Device already connected, emitting disconnectRequested";
+            emit disconnectRequested(serial);
+        } else {
+            qDebug() << "[ControlPanel] Device not connected, emitting connectRequested";
+            emit connectRequested(serial);
+        }
+    } else {
+        qWarning() << "[ControlPanel] No device selected!";
     }
 }
 
 void
-InsynicControlPanel::onMenuClicked()
+InsynicControlPanel::onDisconnectAllClicked()
 {
-    if (m_scrcpy) {
-        insynic_scrcpy_inject_menu(m_scrcpy);
+    qDebug() << "[ControlPanel] onDisconnectAllClicked, emitting disconnectAllRequested";
+    emit disconnectAllRequested();
+}
+
+void
+InsynicControlPanel::onRefreshClicked()
+{
+    qDebug() << "[ControlPanel] onRefreshClicked, emitting refreshRequested";
+    emit refreshRequested();
+}
+
+void
+InsynicControlPanel::onNetworkConnectClicked()
+{
+    qDebug() << "[ControlPanel] onNetworkConnectClicked, emitting networkConnectOptionSelected";
+    emit networkConnectOptionSelected();
+}
+
+void
+InsynicControlPanel::onDeviceDoubleClicked(QListWidgetItem *item)
+{
+    if (item) {
+        QString serial = item->data(Qt::UserRole).toString();
+        if (serial.isEmpty()) {
+            serial = item->text();
+        }
+        qDebug() << "[ControlPanel] onDeviceDoubleClicked, serial:" << serial;
+        if (m_connectedDevices.contains(serial)) {
+            qDebug() << "[ControlPanel] Device connected, emitting disconnectRequested";
+            emit disconnectRequested(serial);
+        } else {
+            qDebug() << "[ControlPanel] Device not connected, emitting connectRequested";
+            emit connectRequested(serial);
+        }
     }
 }
 
 void
-InsynicControlPanel::onAddKeyClicked()
+InsynicControlPanel::onDeviceSelectionChanged()
 {
-    emit addKeyRequested();
+    QString serial = currentDevice();
+    qDebug() << "[ControlPanel] onDeviceSelectionChanged, current:" << serial;
+    updateConnectButtonState();
 }
 
 void
-InsynicControlPanel::onSaveProfileClicked()
+InsynicControlPanel::updateDeviceList(const QStringList &devices, const QMap<QString, QString> &deviceNames)
 {
-    emit saveProfileRequested();
-}
-
-void
-InsynicControlPanel::onApplyProfileClicked()
-{
-    QString name = m_profileCombo->currentText();
-    if (!name.isEmpty()) {
-        emit profileSelected(name);
+    QString current = currentDevice();
+    m_deviceNames = deviceNames;
+    m_deviceList->clear();
+    for (const QString &dev : devices) {
+        QString displayName;
+        if (deviceNames.contains(dev) && !deviceNames[dev].isEmpty()) {
+            displayName = deviceNames[dev] + "【" + dev + "】";
+        } else {
+            displayName = dev;
+        }
+        QListWidgetItem *item = new QListWidgetItem(displayName);
+        item->setData(Qt::UserRole, dev);
+        if (m_connectedDevices.contains(dev)) {
+            item->setForeground(QColor("#4CAF50"));
+        }
+        m_deviceList->addItem(item);
     }
+    if (!current.isEmpty()) {
+        for (int i = 0; i < m_deviceList->count(); i++) {
+            if (m_deviceList->item(i)->data(Qt::UserRole).toString() == current) {
+                m_deviceList->setCurrentRow(i);
+                break;
+            }
+        }
+    } else if (m_deviceList->count() > 0) {
+        m_deviceList->setCurrentRow(0);
+    }
+    updateConnectButtonState();
 }
 
 void
-InsynicControlPanel::onDeleteProfileClicked()
+InsynicControlPanel::updateConnectionStatus(const QString &serial, bool connected)
 {
-    QString name = m_profileCombo->currentText();
-    if (!name.isEmpty()) {
-        QMessageBox::StandardButton reply = QMessageBox::question(
-            this, tr("Confirm Delete"), 
-            tr("Are you sure you want to delete profile \"%1\"?").arg(name),
-            QMessageBox::Yes | QMessageBox::No);
-        
-        if (reply == QMessageBox::Yes) {
-            if (m_profileManager->deleteProfile(name)) {
-                updateProfileCombo();
-                QMessageBox::information(this, tr("Success"), tr("Profile deleted successfully."));
-            } else {
-                QMessageBox::warning(this, tr("Error"), tr("Failed to delete profile."));
+    qDebug() << "[ControlPanel] updateConnectionStatus:" << serial << "- connected:" << connected;
+
+    if (connected) {
+        if (!m_connectedDevices.contains(serial)) {
+            m_connectedDevices.append(serial);
+        }
+        QString deviceName = m_deviceNames.value(serial);
+        QString displayName = deviceName.isEmpty() ? serial : deviceName + "【" + serial + "】";
+        QString status = displayName + " - " + tr("Connected");
+        bool found = false;
+        for (int i = 0; i < m_connectedList->count(); i++) {
+            QListWidgetItem *item = m_connectedList->item(i);
+            if (item->data(Qt::UserRole).toString() == serial) {
+                item->setText(status);
+                item->setForeground(QColor("#4CAF50"));
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            QListWidgetItem *item = new QListWidgetItem(status);
+            item->setData(Qt::UserRole, serial);
+            item->setForeground(QColor("#4CAF50"));
+            m_connectedList->addItem(item);
+        }
+        qDebug() << "[ControlPanel] Added to connected list, total:" << m_connectedDevices.size();
+    } else {
+        m_connectedDevices.removeAll(serial);
+        qDebug() << "[ControlPanel] Removed from connected list, remaining:" << m_connectedDevices.size();
+        for (int i = 0; i < m_connectedList->count(); i++) {
+            QListWidgetItem *item = m_connectedList->item(i);
+            if (item->data(Qt::UserRole).toString() == serial) {
+                delete m_connectedList->takeItem(i);
+                break;
+            }
+        }
+        for (int i = 0; i < m_deviceList->count(); i++) {
+            QListWidgetItem *item = m_deviceList->item(i);
+            if (item->data(Qt::UserRole).toString() == serial) {
+                item->setForeground(QColor("#e0e0e0"));
+                break;
             }
         }
     }
+
+    m_disconnectAllBtn->setEnabled(m_connectedList->count() > 0);
+    updateConnectButtonState();
 }
 
 void
-InsynicControlPanel::updateProfileCombo()
+InsynicControlPanel::updateConnectionMessage(const QString &serial, const QString &message)
 {
-    QString current = m_profileCombo->currentText();
-    m_profileCombo->clear();
-    QStringList names = m_profileManager->getProfileNames();
-    foreach (const QString &name, names) {
-        m_profileCombo->addItem(name);
+    qDebug() << "[ControlPanel] updateConnectionMessage:" << serial << "-" << message;
+
+    QString deviceName = m_deviceNames.value(serial);
+    QString displayName = deviceName.isEmpty() ? serial : deviceName + "【" + serial + "】";
+    QString text = displayName + " - " + message;
+
+    QColor color;
+    if (message == QLatin1String("Connected") || message == tr("Connected")) {
+        color = QColor("#4CAF50");
+    } else if (message.contains("failed", Qt::CaseInsensitive) ||
+               message.contains(tr("failed"), Qt::CaseInsensitive)) {
+        color = QColor("#f44336");
+    } else {
+        color = QColor("#FFA500");
     }
-    if (!current.isEmpty()) {
-        int idx = m_profileCombo->findText(current);
-        if (idx >= 0) {
-            m_profileCombo->setCurrentIndex(idx);
+
+    for (int i = 0; i < m_connectedList->count(); i++) {
+        QListWidgetItem *item = m_connectedList->item(i);
+        if (item->data(Qt::UserRole).toString() == serial) {
+            item->setText(text);
+            item->setForeground(color);
+            return;
+        }
+    }
+
+    QListWidgetItem *item = new QListWidgetItem(text);
+    item->setData(Qt::UserRole, serial);
+    item->setForeground(color);
+    m_connectedList->addItem(item);
+    m_disconnectAllBtn->setEnabled(m_connectedList->count() > 0);
+}
+
+void
+InsynicControlPanel::onDeviceListContextMenu(const QPoint &pos)
+{
+    QPoint globalPos = m_deviceList->mapToGlobal(pos);
+    QListWidgetItem *item = m_deviceList->itemAt(pos);
+
+    QMenu menu;
+    if (item) {
+        QString serial = item->data(Qt::UserRole).toString();
+        if (serial.isEmpty()) {
+            serial = item->text();
+        }
+        QAction *settingsAction = menu.addAction(tr("Streaming Settings..."));
+        connect(settingsAction, &QAction::triggered, this, [this, serial]() {
+            emit deviceSettingsRequested(serial);
+        });
+        menu.addSeparator();
+    }
+
+    QAction *connectAllAction = menu.addAction(tr("Connect All Devices"));
+    connect(connectAllAction, &QAction::triggered, this, [this]() {
+        emit connectAllRequested();
+    });
+
+    menu.exec(globalPos);
+}
+
+void
+InsynicControlPanel::retranslateUi()
+{
+    m_connectBtn->setText(m_connectedDevices.contains(currentDevice()) ? tr("Disconnect") : tr("Connect"));
+    m_refreshBtn->setText(tr("Refresh"));
+    m_networkBtn->setText(tr("Network"));
+    m_disconnectAllBtn->setText(tr("Disconnect All"));
+    m_fileManagerBtn->setText(tr("File Manager"));
+
+    QList<QGroupBox *> groupBoxes = findChildren<QGroupBox *>();
+    for (QGroupBox *gb : groupBoxes) {
+        QString originalText = gb->title();
+        if (originalText.contains("Devices")) {
+            gb->setTitle(tr("Devices"));
+        } else if (originalText.contains("Connected")) {
+            gb->setTitle(tr("Connected Devices"));
         }
     }
 }

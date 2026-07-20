@@ -7,6 +7,11 @@ add_library(insynic_ui STATIC
     insynic_settingsdialog.cpp
     insynic_networkdialog.cpp
     insynic_customtranslator.cpp
+    insynic_devicewindow.cpp
+    insynic_sidepanel.cpp
+    insynic_controlbar.cpp
+    insynic_devicecontrol.cpp
+    insynic_devicesession.cpp
     macos_menu.mm
     qt_nsview.mm
 )
@@ -22,6 +27,7 @@ target_link_libraries(insynic_ui PUBLIC
     Qt6::Core
     Qt6::Widgets
     Qt6::Gui
+    Qt6::Concurrent
 )
 
 if(APPLE)

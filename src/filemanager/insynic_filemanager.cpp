@@ -37,15 +37,20 @@ InsynicFileManager::runAdb(const QStringList &args, bool *ok, int timeoutMs)
     }
     fullArgs << args;
 
+    qDebug() << "[FileManager] runAdb cmd:" << m_adbPath << fullArgs;
+
     QProcess process;
     process.start(m_adbPath, fullArgs);
 
     if (!process.waitForStarted(timeoutMs)) {
+        qCritical() << "[FileManager] adb failed to start, args:" << fullArgs
+                    << "error:" << process.errorString();
         if (ok) *ok = false;
         return QString();
     }
 
     if (!process.waitForFinished(timeoutMs)) {
+        qCritical() << "[FileManager] adb timed out, args:" << fullArgs;
         process.kill();
         process.waitForFinished();
         if (ok) *ok = false;
@@ -59,9 +64,11 @@ InsynicFileManager::runAdb(const QStringList &args, bool *ok, int timeoutMs)
     QString output = QString::fromUtf8(process.readAllStandardOutput());
     QString error = QString::fromUtf8(process.readAllStandardError());
     if (!error.isEmpty()) {
-        qWarning() << "adb error:" << error;
+        qWarning() << "[FileManager] adb stderr:" << error;
     }
 
+    qDebug() << "[FileManager] runAdb exit=" << process.exitCode()
+             << "outputLen=" << output.size();
     return output;
 }
 
@@ -101,6 +108,30 @@ InsynicFileManager::connectDevice(const QString &ip, int port)
     return output.contains("connected") || output.contains("already connected");
 }
 
+QString
+InsynicFileManager::getDeviceName(const QString &serial)
+{
+    QString oldSerial = m_serial;
+    m_serial = serial;
+
+    bool ok;
+    QString model = runAdb(QStringList() << "shell" << "getprop" << "ro.product.model", &ok);
+    if (!ok || model.trimmed().isEmpty()) {
+        m_serial = oldSerial;
+        return QString();
+    }
+
+    QString brand = runAdb(QStringList() << "shell" << "getprop" << "ro.product.brand", &ok);
+    if (ok && !brand.trimmed().isEmpty()) {
+        QString name = brand.trimmed() + " " + model.trimmed();
+        m_serial = oldSerial;
+        return name;
+    }
+
+    m_serial = oldSerial;
+    return model.trimmed();
+}
+
 static QString
 normalizeRemotePath(const QString &path)
 {
@@ -120,16 +151,40 @@ normalizeRemotePath(const QString &path)
 QVector<AdbFileInfo>
 InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
 {
+    qDebug() << "[FileManager] ===== listFiles called =====";
+    qDebug() << "[FileManager] remotePath:" << remotePath
+             << "current serial:" << m_serial;
+
     QVector<AdbFileInfo> result;
     QString path = normalizeRemotePath(remotePath);
+    qDebug() << "[FileManager] normalized path:" << path;
 
+    bool readLinkOk;
+    QString realPathOutput = runAdb(
+        QStringList() << "shell" << "readlink" << "-f" << path, &readLinkOk);
+    QString resolvedPath = readLinkOk && !realPathOutput.trimmed().isEmpty()
+        ? realPathOutput.trimmed()
+        : path;
+    qDebug() << "[FileManager] readLinkOk:" << readLinkOk
+             << "resolvedPath:" << resolvedPath;
+
+    bool adbOk = false;
     QString output = runAdb(
-        QStringList() << "shell" << "ls" << "-la" << path, ok);
-    if (!ok || output.isEmpty()) {
+        QStringList() << "shell" << "ls" << "-la" << resolvedPath, &adbOk);
+    if (ok) *ok = adbOk;
+
+    if (!adbOk || output.isEmpty()) {
+        qWarning() << "[FileManager] ls failed or empty output, adbOk:" << adbOk
+                    << "output isEmpty:" << output.isEmpty();
         return result;
     }
 
+    qDebug() << "[FileManager] ls output lines:" << output.count('\n');
+    qDebug() << "[FileManager] ls raw output:\n" << output;
+
     QStringList lines = output.split('\n', Qt::SkipEmptyParts);
+    int matchedCount = 0;
+    int skippedCount = 0;
     for (const QString &line : lines) {
         if (line.startsWith("total ")) {
             continue;
@@ -139,16 +194,19 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
         }
 
         QRegularExpression re(
-            "^([dlcb-][rwx-]+)\\s+\\d*\\s*"
+            "^([^\\s]+)\\s+\\d*\\s*"
             "([^\\s]+)\\s+([^\\s]+)\\s+"
-            "([0-9]+)?\\s*"
+            "(\\d+)?\\s*"
             "([0-9]{4}-[0-9]{2}-[0-9]{2}\\s+[0-9]{2}:[0-9]{2})\\s+"
             "(.+)$"
         );
         QRegularExpressionMatch match = re.match(line.trimmed());
         if (!match.hasMatch()) {
+            skippedCount++;
+            qDebug() << "[FileManager] Regex did NOT match line:" << line;
             continue;
         }
+        matchedCount++;
 
         AdbFileInfo info;
         info.permissions = match.captured(1);
@@ -158,8 +216,23 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
         info.date = match.captured(5);
         info.name = match.captured(6);
 
-        info.isDir = info.permissions.startsWith('d');
         info.isLink = info.permissions.startsWith('l');
+        
+        QString targetPath = path + "/" + info.name;
+        if (info.isLink) {
+            int arrowIdx = info.name.indexOf(" -> ");
+            if (arrowIdx > 0) {
+                info.name = info.name.left(arrowIdx);
+                targetPath = path + "/" + info.name;
+            }
+            
+            bool isDirResult;
+            QString testCmd = QString("test -d %1 && echo 1 || echo 0").arg(targetPath);
+            QString dirCheck = runAdb(QStringList() << "shell" << testCmd, &isDirResult);
+            info.isDir = isDirResult && dirCheck.trimmed() == "1";
+        } else {
+            info.isDir = info.permissions.startsWith('d');
+        }
 
         if (path == "/") {
             info.path = "/" + info.name;
@@ -171,16 +244,11 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
             continue;
         }
 
-        if (info.isLink) {
-            int arrowIdx = info.name.indexOf(" -> ");
-            if (arrowIdx > 0) {
-                info.name = info.name.left(arrowIdx);
-                info.path = path + "/" + info.name;
-            }
-        }
-
         result.append(info);
     }
+
+    qDebug() << "[FileManager] listFiles result: matched=" << matchedCount
+             << "skipped=" << skippedCount << "total entries=" << result.size();
 
     std::sort(result.begin(), result.end(),
               [](const AdbFileInfo &a, const AdbFileInfo &b) {

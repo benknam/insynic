@@ -60,6 +60,9 @@ bool InsynicProfileManager::saveProfile(const Profile &profile)
         keyObj["relX"] = key.relX;
         keyObj["relY"] = key.relY;
         keyObj["size"] = key.size;
+        keyObj["opacity"] = key.opacity;
+        keyObj["color"] = key.color.name();
+        keyObj["toggle"] = key.toggle;
         keysArray.append(keyObj);
     }
     obj["keys"] = keysArray;
@@ -107,6 +110,9 @@ bool InsynicProfileManager::loadProfile(const QString &name, Profile &profile)
         key.relX = keyObj["relX"].toDouble();
         key.relY = keyObj["relY"].toDouble();
         key.size = keyObj["size"].toInt();
+        key.opacity = keyObj.contains("opacity") ? keyObj["opacity"].toInt() : 60;
+        key.color = keyObj.contains("color") ? QColor(keyObj["color"].toString()) : QColor(200, 200, 200);
+        key.toggle = keyObj.contains("toggle") ? keyObj["toggle"].toBool() : false;
         profile.keys.append(key);
     }
     

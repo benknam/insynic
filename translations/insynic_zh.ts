@@ -16,10 +16,6 @@
         <translation>退出 insynic</translation>
     </message>
     <message>
-        <source>Setting</source>
-        <translation>设置</translation>
-    </message>
-    <message>
         <source>Language</source>
         <translation>语言</translation>
     </message>
@@ -68,15 +64,15 @@
         <translation>退出</translation>
     </message>
     <message>
-        <source>Show Window</source>
-        <translation>显示窗口</translation>
+        <source>Show</source>
+        <translation>显示</translation>
     </message>
     <message>
-        <source>Hide Window</source>
-        <translation>隐藏窗口</translation>
+        <source>Hide</source>
+        <translation>隐藏</translation>
     </message>
     <message>
-        <source>insynic 1.10 Lite
+        <source>insynic 1.21Lite
 
 A macOS application for controlling Android devices.
 
@@ -88,6 +84,7 @@ Features:
 - Network (WiFi) connection
 - Virtual key mapping
 - Profile management
+- Multi-device independent control
 
 Author: 厨房 / OMADAFAKA
 
@@ -99,7 +96,7 @@ Credits:
 - FFmpeg (video decoding)
 
 Thanks to all the developers of these great tools.</source>
-        <translation>insynic 1.10 Lite
+        <translation>insynic 1.21Lite
 
 一个用于控制 Android 设备的 macOS 应用程序。
 
@@ -111,6 +108,7 @@ Thanks to all the developers of these great tools.</source>
 - 网络（WiFi）连接
 - 虚拟按键映射
 - 配置文件管理
+- 多设备独立控制
 
 作者：厨房 / OMADAFAKA
 
@@ -134,6 +132,14 @@ Please connect your device via USB and enable USB debugging.</source>
         <translation>未找到 Android 设备。
 
 请通过 USB 连接设备并启用 USB 调试。</translation>
+    </message>
+    <message>
+        <source>No Device Selected</source>
+        <translation>未选择设备</translation>
+    </message>
+    <message>
+        <source>Please select a device first.</source>
+        <translation>请先选择一个设备。</translation>
     </message>
     <message>
         <source>Error</source>
@@ -191,12 +197,106 @@ Please ensure:
         <source>Streaming Settings</source>
         <translation>串流设置</translation>
     </message>
+    <message>
+        <source>Streaming Settings - %1</source>
+        <translation>串流设置 - %1</translation>
+    </message>
+    <message>
+        <source>New settings will be applied on next connection.
+Please disconnect and reconnect the device.</source>
+        <translation>新设置将在下次连接时生效。
+请断开并重新连接设备。</translation>
+    </message>
+    <message>
+        <source>Success</source>
+        <translation>成功</translation>
+    </message>
+    <message>
+        <source>Connected to device at %1:%2</source>
+        <translation>已连接到设备 %1:%2</translation>
+    </message>
+    <message>
+        <source>Failed to connect to device at %1:%2</source>
+        <translation>连接设备 %1:%2 失败</translation>
+    </message>
+    <message>
+        <source>IP address cannot be empty.</source>
+        <translation>IP地址不能为空。</translation>
+    </message>
+    <message>
+        <source>Connecting...</source>
+        <translation>连接中...</translation>
+    </message>
+    <message>
+        <source>Starting scrcpy server...</source>
+        <translation>启动 scrcpy 服务...</translation>
+    </message>
+    <message>
+        <source>Failed to initialize screen</source>
+        <translation>初始化屏幕失败</translation>
+    </message>
+    <message>
+        <source>Profile saved successfully.</source>
+        <translation>配置保存成功。</translation>
+    </message>
+    <message>
+        <source>Failed to save profile.</source>
+        <translation>保存配置失败。</translation>
+    </message>
 </context>
 <context>
     <name>InsynicControlPanel</name>
     <message>
         <source>insynic</source>
         <translation>insynic</translation>
+    </message>
+    <message>
+        <source>Streaming Settings...</source>
+        <translation>串流设置...</translation>
+    </message>
+    <message>
+        <source>Devices</source>
+        <translation>设备</translation>
+    </message>
+    <message>
+        <source>Connected Devices</source>
+        <translation>已连接设备</translation>
+    </message>
+    <message>
+        <source>Connect</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <source>Disconnect</source>
+        <translation>断开连接</translation>
+    </message>
+    <message>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>网络</translation>
+    </message>
+    <message>
+        <source>Disconnect All</source>
+        <translation>断开所有连接</translation>
+    </message>
+    <message>
+        <source>Connect All Devices</source>
+        <translation>连接所有设备</translation>
+    </message>
+    <message>
+        <source>File Manager</source>
+        <translation>文件管理</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation>已连接</translation>
+    </message>
+    <message>
+        <source>failed</source>
+        <translation>失败</translation>
     </message>
     <message>
         <source>Connection</source>
@@ -219,18 +319,6 @@ Please ensure:
         <translation>自动选择</translation>
     </message>
     <message>
-        <source>Connect</source>
-        <translation>连接</translation>
-    </message>
-    <message>
-        <source>Disconnect</source>
-        <translation>断开连接</translation>
-    </message>
-    <message>
-        <source>File Manager</source>
-        <translation>文件管理</translation>
-    </message>
-    <message>
         <source>Android Keys</source>
         <translation>Android 按键</translation>
     </message>
@@ -243,8 +331,8 @@ Please ensure:
         <translation>主页</translation>
     </message>
     <message>
-        <source>Recent</source>
-        <translation>最近程序</translation>
+        <source>Task</source>
+        <translation>任务</translation>
     </message>
     <message>
         <source>Menu</source>
@@ -540,6 +628,50 @@ Please ensure:
         <source>16 Mbps</source>
         <translation>16 Mbps</translation>
     </message>
+    <message>
+        <source>scrcpy Options</source>
+        <translation>scrcpy 选项</translation>
+    </message>
+    <message>
+        <source>Turn screen off during mirroring</source>
+        <translation>镜像时关闭设备屏幕</translation>
+    </message>
+    <message>
+        <source>Turn the device screen off when mirroring starts.</source>
+        <translation>开始镜像时关闭设备屏幕。</translation>
+    </message>
+    <message>
+        <source>Keep device awake</source>
+        <translation>保持设备唤醒</translation>
+    </message>
+    <message>
+        <source>Prevent the device from sleeping while connected.</source>
+        <translation>连接时防止设备进入休眠。</translation>
+    </message>
+    <message>
+        <source>Power on on connect</source>
+        <translation>连接时点亮屏幕</translation>
+    </message>
+    <message>
+        <source>Power on the device screen when a connection is established.</source>
+        <translation>建立连接时点亮设备屏幕。</translation>
+    </message>
+    <message>
+        <source>Disable screensaver</source>
+        <translation>禁用屏幕保护</translation>
+    </message>
+    <message>
+        <source>Disable the computer screensaver while a device is connected.</source>
+        <translation>设备连接时禁用电脑屏幕保护。</translation>
+    </message>
+    <message>
+        <source>Enable control (mouse/keyboard)</source>
+        <translation>启用控制（鼠标/键盘）</translation>
+    </message>
+    <message>
+        <source>Allow controlling the device with mouse and keyboard.</source>
+        <translation>允许使用鼠标和键盘控制设备。</translation>
+    </message>
 </context>
 <context>
     <name>InsynicControlPanel</name>
@@ -603,6 +735,22 @@ Please ensure:
         <translation>大小（像素）：</translation>
     </message>
     <message>
+        <source>Opacity:</source>
+        <translation>透明度：</translation>
+    </message>
+    <message>
+        <source>Color:</source>
+        <translation>颜色：</translation>
+    </message>
+    <message>
+        <source>Toggle</source>
+        <translation>开关</translation>
+    </message>
+    <message>
+        <source>Select Key Color</source>
+        <translation>选择按键颜色</translation>
+    </message>
+    <message>
         <source>OK</source>
         <translation>确定</translation>
     </message>
@@ -659,22 +807,92 @@ Please ensure:
     </message>
 </context>
 <context>
-    <name>InsynicMainWindow</name>
+    <name>InsynicSidePanel</name>
     <message>
-        <source>Success</source>
-        <translation>成功</translation>
+        <source>Volume Up</source>
+        <translation>音量加</translation>
     </message>
     <message>
-        <source>Profile saved successfully.</source>
-        <translation>配置保存成功。</translation>
+        <source>Volume Down</source>
+        <translation>音量减</translation>
     </message>
     <message>
-        <source>Error</source>
-        <translation>错误</translation>
+        <source>Notifications</source>
+        <translation>通知</translation>
     </message>
     <message>
-        <source>Failed to save profile.</source>
-        <translation>保存配置失败。</translation>
+        <source>Rotate</source>
+        <translation>旋转</translation>
+    </message>
+    <message>
+        <source>Screen On/Off</source>
+        <translation>屏幕开/关</translation>
+    </message>
+    <message>
+        <source>OTG Input</source>
+        <translation>OTG 输入</translation>
+    </message>
+    <message>
+        <source>Close Connection</source>
+        <translation>关闭连接</translation>
+    </message>
+</context>
+<context>
+    <name>InsynicControlBar</name>
+    <message>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <source>Home</source>
+        <translation>主页</translation>
+    </message>
+    <message>
+        <source>Task</source>
+        <translation>任务</translation>
+    </message>
+    <message>
+        <source>Menu</source>
+        <translation>菜单</translation>
+    </message>
+    <message>
+        <source>Add Key</source>
+        <translation>添加按键</translation>
+    </message>
+    <message>
+        <source>Save Profile</source>
+        <translation>保存配置</translation>
+    </message>
+    <message>
+        <source>Apply</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <source>Delete</source>
+        <translation>删除</translation>
+    </message>
+</context>
+<context>
+    <name>InsynicDeviceWindow</name>
+    <message>
+        <source>Configure Key</source>
+        <translation>配置按键</translation>
+    </message>
+    <message>
+        <source>Starting scrcpy server...</source>
+        <translation>正在启动 scrcpy 服务...</translation>
+    </message>
+    <message>
+        <source>Connecting...</source>
+        <translation>连接中...</translation>
+    </message>
+    <message>
+        <source>Connected</source>
+        <translation>已连接</translation>
+    </message>
+    <message>
+        <source>Connection failed</source>
+        <translation>连接失败</translation>
     </message>
 </context>
 </TS>

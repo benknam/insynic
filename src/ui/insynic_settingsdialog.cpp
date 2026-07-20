@@ -15,7 +15,7 @@ InsynicSettingsDialog::~InsynicSettingsDialog()
 void InsynicSettingsDialog::setupUi()
 {
     setWindowTitle(tr("Streaming Settings"));
-    setMinimumWidth(380);
+    setMinimumWidth(420);
     setModal(true);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
@@ -106,6 +106,32 @@ void InsynicSettingsDialog::setupUi()
 
     mainLayout->addWidget(videoGroup);
 
+    QGroupBox *scrcpyGroup = new QGroupBox(tr("scrcpy Options"), this);
+    QVBoxLayout *scrcpyLayout = new QVBoxLayout(scrcpyGroup);
+
+    m_turnScreenOffCheck = new QCheckBox(tr("Turn screen off during mirroring"), this);
+    m_turnScreenOffCheck->setToolTip(tr("Turn the device screen off when mirroring starts."));
+    scrcpyLayout->addWidget(m_turnScreenOffCheck);
+
+    m_stayAwakeCheck = new QCheckBox(tr("Keep device awake"), this);
+    m_stayAwakeCheck->setToolTip(tr("Prevent the device from sleeping while connected."));
+    scrcpyLayout->addWidget(m_stayAwakeCheck);
+
+    m_powerOnCheck = new QCheckBox(tr("Power on on connect"), this);
+    m_powerOnCheck->setToolTip(tr("Power on the device screen when a connection is established."));
+    scrcpyLayout->addWidget(m_powerOnCheck);
+
+    m_disableScreensaverCheck = new QCheckBox(tr("Disable screensaver"), this);
+    m_disableScreensaverCheck->setToolTip(tr("Disable the computer screensaver while a device is connected."));
+    scrcpyLayout->addWidget(m_disableScreensaverCheck);
+
+    m_controlEnabledCheck = new QCheckBox(tr("Enable control (mouse/keyboard)"), this);
+    m_controlEnabledCheck->setToolTip(tr("Allow controlling the device with mouse and keyboard."));
+    m_controlEnabledCheck->setChecked(true);
+    scrcpyLayout->addWidget(m_controlEnabledCheck);
+
+    mainLayout->addWidget(scrcpyGroup);
+
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Apply | QDialogButtonBox::Reset | QDialogButtonBox::Cancel,
         this);
@@ -179,9 +205,59 @@ int InsynicSettingsDialog::videoBitRate() const
     return m_videoBitRateSpinBox->value();
 }
 
+void InsynicSettingsDialog::setTurnScreenOff(bool on)
+{
+    m_turnScreenOffCheck->setChecked(on);
+}
+
+bool InsynicSettingsDialog::turnScreenOff() const
+{
+    return m_turnScreenOffCheck->isChecked();
+}
+
+void InsynicSettingsDialog::setStayAwake(bool on)
+{
+    m_stayAwakeCheck->setChecked(on);
+}
+
+bool InsynicSettingsDialog::stayAwake() const
+{
+    return m_stayAwakeCheck->isChecked();
+}
+
+void InsynicSettingsDialog::setPowerOn(bool on)
+{
+    m_powerOnCheck->setChecked(on);
+}
+
+bool InsynicSettingsDialog::powerOn() const
+{
+    return m_powerOnCheck->isChecked();
+}
+
+void InsynicSettingsDialog::setDisableScreensaver(bool on)
+{
+    m_disableScreensaverCheck->setChecked(on);
+}
+
+bool InsynicSettingsDialog::disableScreensaver() const
+{
+    return m_disableScreensaverCheck->isChecked();
+}
+
+void InsynicSettingsDialog::setControlEnabled(bool on)
+{
+    m_controlEnabledCheck->setChecked(on);
+}
+
+bool InsynicSettingsDialog::controlEnabled() const
+{
+    return m_controlEnabledCheck->isChecked();
+}
+
 void InsynicSettingsDialog::onApplyClicked()
 {
-    emit settingsChanged(maxSize(), maxFps(), videoBitRate());
+    emit settingsChanged();
     accept();
 }
 

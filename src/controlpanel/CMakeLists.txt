@@ -5,6 +5,7 @@ add_library(insynic_controlpanel STATIC
     insynic_keyconfigdialog.cpp
     insynic_saveprofiledialog.cpp
     insynic_profilemanager.cpp
+    insynic_devicesettingsprofile.cpp
 )
 
 target_include_directories(insynic_controlpanel PUBLIC
