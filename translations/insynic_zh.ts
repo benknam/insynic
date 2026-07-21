@@ -72,7 +72,7 @@
         <translation>隐藏</translation>
     </message>
     <message>
-        <source>insynic 1.21Lite
+        <source>insynic 1.22
 
 A macOS application for controlling Android devices.
 
@@ -96,7 +96,7 @@ Credits:
 - FFmpeg (video decoding)
 
 Thanks to all the developers of these great tools.</source>
-        <translation>insynic 1.21Lite
+        <translation>insynic 1.22
 
 一个用于控制 Android 设备的 macOS 应用程序。
 
@@ -202,6 +202,14 @@ Please ensure:
         <translation>串流设置 - %1</translation>
     </message>
     <message>
+        <source>Record Settings - %1</source>
+        <translation>录像设置 - %1</translation>
+    </message>
+    <message>
+        <source>Record Settings</source>
+        <translation>录像设置</translation>
+    </message>
+    <message>
         <source>New settings will be applied on next connection.
 Please disconnect and reconnect the device.</source>
         <translation>新设置将在下次连接时生效。
@@ -218,6 +226,26 @@ Please disconnect and reconnect the device.</source>
     <message>
         <source>Failed to connect to device at %1:%2</source>
         <translation>连接设备 %1:%2 失败</translation>
+    </message>
+    <message>
+        <source>Disconnect Network Device</source>
+        <translation>断开网络设备</translation>
+    </message>
+    <message>
+        <source>Disconnect network device %1?
+
+This will run 'adb disconnect' for this device.</source>
+        <translation>断开网络设备 %1？
+
+将对该设备执行 'adb disconnect' 命令。</translation>
+    </message>
+    <message>
+        <source>Network device %1 has been disconnected.</source>
+        <translation>网络设备 %1 已断开。</translation>
+    </message>
+    <message>
+        <source>Failed to disconnect network device %1.</source>
+        <translation>断开网络设备 %1 失败。</translation>
     </message>
     <message>
         <source>IP address cannot be empty.</source>
@@ -255,6 +283,10 @@ Please disconnect and reconnect the device.</source>
         <translation>串流设置...</translation>
     </message>
     <message>
+        <source>Record Settings...</source>
+        <translation>录像设置...</translation>
+    </message>
+    <message>
         <source>Devices</source>
         <translation>设备</translation>
     </message>
@@ -285,6 +317,10 @@ Please disconnect and reconnect the device.</source>
     <message>
         <source>Connect All Devices</source>
         <translation>连接所有设备</translation>
+    </message>
+    <message>
+        <source>Disconnect Network Device</source>
+        <translation>断开网络设备</translation>
     </message>
     <message>
         <source>File Manager</source>
@@ -543,6 +579,105 @@ Please disconnect and reconnect the device.</source>
     </message>
 </context>
 <context>
+    <name>InsynicRecordDialog</name>
+    <message>
+        <source>Record Settings</source>
+        <translation>录像设置</translation>
+    </message>
+    <message>
+        <source>Enable recording on connect</source>
+        <translation>连接时启用录像</translation>
+    </message>
+    <message>
+        <source>If checked, recording will start automatically when the device is connected.</source>
+        <translation>勾选后，连接设备时将自动开始录像。</translation>
+    </message>
+    <message>
+        <source>Output File</source>
+        <translation>输出文件</translation>
+    </message>
+    <message>
+        <source>File Path:</source>
+        <translation>文件路径：</translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation>浏览...</translation>
+    </message>
+    <message>
+        <source>Format:</source>
+        <translation>格式：</translation>
+    </message>
+    <message>
+        <source>Auto (by extension)</source>
+        <translation>自动（按扩展名）</translation>
+    </message>
+    <message>
+        <source>MP4 (video)</source>
+        <translation>MP4（视频）</translation>
+    </message>
+    <message>
+        <source>MKV (video)</source>
+        <translation>MKV（视频）</translation>
+    </message>
+    <message>
+        <source>M4A (audio only)</source>
+        <translation>M4A（仅音频）</translation>
+    </message>
+    <message>
+        <source>MKA (audio only)</source>
+        <translation>MKA（仅音频）</translation>
+    </message>
+    <message>
+        <source>OPUS (audio only)</source>
+        <translation>OPUS（仅音频）</translation>
+    </message>
+    <message>
+        <source>AAC (audio only)</source>
+        <translation>AAC（仅音频）</translation>
+    </message>
+    <message>
+        <source>FLAC (audio only)</source>
+        <translation>FLAC（仅音频）</translation>
+    </message>
+    <message>
+        <source>WAV (audio only)</source>
+        <translation>WAV（仅音频）</translation>
+    </message>
+    <message>
+        <source>Stream Selection</source>
+        <translation>流选择</translation>
+    </message>
+    <message>
+        <source>Record video stream</source>
+        <translation>录像视频流</translation>
+    </message>
+    <message>
+        <source>Save video stream to the output file.</source>
+        <translation>将视频流保存到输出文件。</translation>
+    </message>
+    <message>
+        <source>Record audio stream</source>
+        <translation>录像音频流</translation>
+    </message>
+    <message>
+        <source>Save audio stream to the output file (requires audio streaming enabled in Streaming Settings).</source>
+        <translation>将音频流保存到输出文件（需在串流设置中启用音频传输）。</translation>
+    </message>
+    <message>
+        <source>Note: Recording starts automatically when the device is connected, and stops when disconnected.</source>
+        <translation>注意：连接设备时自动开始录像，断开连接时停止录像。</translation>
+    </message>
+    <message>
+        <source>Select Output File</source>
+        <translation>选择输出文件</translation>
+    </message>
+    <message>
+        <source>Video Files (*.mp4 *.mkv);;Audio Files (*.m4a *.mka *.opus *.aac *.flac *.wav);;All Files (*)</source>
+        <translation>视频文件 (*.mp4 *.mkv);;音频文件 (*.m4a *.mka *.opus *.aac *.flac *.wav);;所有文件 (*)</translation>
+    </message>
+</context>
+<context>
     <name>InsynicSettingsDialog</name>
     <message>
         <source>Streaming Settings</source>
@@ -671,6 +806,66 @@ Please disconnect and reconnect the device.</source>
     <message>
         <source>Allow controlling the device with mouse and keyboard.</source>
         <translation>允许使用鼠标和键盘控制设备。</translation>
+    </message>
+    <message>
+        <source>Audio Settings</source>
+        <translation>音频设置</translation>
+    </message>
+    <message>
+        <source>Enable audio streaming</source>
+        <translation>启用音频传输</translation>
+    </message>
+    <message>
+        <source>Stream device audio to the computer.</source>
+        <translation>将设备音频传输到电脑。</translation>
+    </message>
+    <message>
+        <source>Audio Bit Rate:</source>
+        <translation>音频比特率：</translation>
+    </message>
+    <message>
+        <source>64 kbps</source>
+        <translation>64 kbps</translation>
+    </message>
+    <message>
+        <source>128 kbps</source>
+        <translation>128 kbps</translation>
+    </message>
+    <message>
+        <source>192 kbps</source>
+        <translation>192 kbps</translation>
+    </message>
+    <message>
+        <source>256 kbps</source>
+        <translation>256 kbps</translation>
+    </message>
+    <message>
+        <source>Audio Codec:</source>
+        <translation>音频编码器：</translation>
+    </message>
+    <message>
+        <source>OPUS (default)</source>
+        <translation>OPUS（默认）</translation>
+    </message>
+    <message>
+        <source>AAC</source>
+        <translation>AAC</translation>
+    </message>
+    <message>
+        <source>Audio Source:</source>
+        <translation>音频源：</translation>
+    </message>
+    <message>
+        <source>Output (system audio)</source>
+        <translation>输出（系统音频）</translation>
+    </message>
+    <message>
+        <source>Microphone</source>
+        <translation>麦克风</translation>
+    </message>
+    <message>
+        <source>Playback (requires Android 11+)</source>
+        <translation>播放（需要 Android 11+）</translation>
     </message>
 </context>
 <context>

@@ -1,6 +1,7 @@
 #include "insynic_mainwindow.h"
 #include "insynic_filebrowser.h"
 #include "insynic_settingsdialog.h"
+#include "insynic_recorddialog.h"
 #include "insynic_customtranslator.h"
 #include "insynic_devicewindow.h"
 #include "insynic_devicesettingsprofile.h"
@@ -165,10 +166,14 @@ InsynicMainWindow::setupUi()
             this, &InsynicMainWindow::onFileManagerClicked);
     connect(m_controlPanel, &InsynicControlPanel::networkConnectOptionSelected,
             this, &InsynicMainWindow::onNetworkConnectOptionSelected);
-    connect(m_controlPanel, &InsynicControlPanel::refreshRequested,
-            this, &InsynicMainWindow::onRefreshClicked);
+    connect(m_controlPanel, &InsynicControlPanel::disconnectNetworkDeviceRequested,
+            this, &InsynicMainWindow::onDisconnectNetworkDeviceRequested);
     connect(m_controlPanel, &InsynicControlPanel::deviceSettingsRequested,
             this, &InsynicMainWindow::onDeviceSettingsRequested);
+    connect(m_controlPanel, &InsynicControlPanel::recordSettingsRequested,
+            this, &InsynicMainWindow::onRecordSettingsRequested);
+    connect(m_controlPanel, &InsynicControlPanel::refreshRequested,
+            this, &InsynicMainWindow::onRefreshClicked);
 
     m_sdlEventTimer = new QTimer(this);
     m_sdlEventTimer->setInterval(16);
@@ -302,6 +307,9 @@ InsynicMainWindow::onConnectClicked(const QString &serial)
         ? devSettings.videoBitRate * 1000000
         : m_videoBitRate;
 
+    // Recording settings: only pass file path if recording is enabled
+    QString recordFilePath = devSettings.recordEnabled ? devSettings.recordFilePath : QString();
+
     InsynicDeviceWindow *deviceWindow = new InsynicDeviceWindow(
         useSerial, m_adbPath, m_serverPath,
         useMaxSize, useMaxFps, useVideoBitRate,
@@ -309,7 +317,15 @@ InsynicMainWindow::onConnectClicked(const QString &serial)
         devSettings.stayAwake,
         devSettings.powerOn,
         devSettings.disableScreensaver,
-        devSettings.controlEnabled);
+        devSettings.controlEnabled,
+        devSettings.audioEnabled,
+        devSettings.audioBitRate,
+        devSettings.audioCodec,
+        devSettings.audioSource,
+        recordFilePath,
+        devSettings.recordFormat,
+        devSettings.recordVideo,
+        devSettings.recordAudio);
 
     qDebug() << "[MainWindow] Connecting deviceWindow signals...";
     connect(deviceWindow, &InsynicDeviceWindow::disconnected,
@@ -436,7 +452,7 @@ void
 InsynicMainWindow::onAboutClicked()
 {
     QMessageBox::about(this, tr("About insynic"),
-        tr("insynic 1.21Lite\n\n"
+        tr("insynic 1.22\n\n"
            "A macOS application for controlling Android devices.\n\n"
            "Features:\n"
            "- Screen mirroring via scrcpy\n"
@@ -520,6 +536,10 @@ InsynicMainWindow::onDeviceSettingsRequested(const QString &serial)
     dialog.setPowerOn(s.powerOn);
     dialog.setDisableScreensaver(s.disableScreensaver);
     dialog.setControlEnabled(s.controlEnabled);
+    dialog.setAudioEnabled(s.audioEnabled);
+    dialog.setAudioBitRate(s.audioBitRate);
+    dialog.setAudioCodec(s.audioCodec);
+    dialog.setAudioSource(s.audioSource);
     dialog.setWindowTitle(tr("Streaming Settings - %1").arg(serial));
 
     if (dialog.exec() == QDialog::Accepted) {
@@ -531,11 +551,51 @@ InsynicMainWindow::onDeviceSettingsRequested(const QString &serial)
         s.powerOn = dialog.powerOn();
         s.disableScreensaver = dialog.disableScreensaver();
         s.controlEnabled = dialog.controlEnabled();
+        s.audioEnabled = dialog.audioEnabled();
+        s.audioBitRate = dialog.audioBitRate();
+        s.audioCodec = dialog.audioCodec();
+        s.audioSource = dialog.audioSource();
         InsynicDeviceSettingsProfile::instance().saveSettings(serial, s);
 
         for (InsynicDeviceWindow *w : m_deviceWindows) {
             if (w->serial() == serial) {
                 QMessageBox::information(this, tr("Streaming Settings"),
+                    tr("New settings will be applied on next connection.\n"
+                       "Please disconnect and reconnect the device."));
+                break;
+            }
+        }
+    }
+}
+
+void
+InsynicMainWindow::onRecordSettingsRequested(const QString &serial)
+{
+    if (serial.isEmpty()) {
+        return;
+    }
+
+    DeviceStreamingSettings s = InsynicDeviceSettingsProfile::instance().loadSettings(serial);
+
+    InsynicRecordDialog dialog(this);
+    dialog.setRecordEnabled(s.recordEnabled);
+    dialog.setFilePath(s.recordFilePath);
+    dialog.setFormat(s.recordFormat);
+    dialog.setRecordVideo(s.recordVideo);
+    dialog.setRecordAudio(s.recordAudio);
+    dialog.setWindowTitle(tr("Record Settings - %1").arg(serial));
+
+    if (dialog.exec() == QDialog::Accepted) {
+        s.recordEnabled = dialog.recordEnabled();
+        s.recordFilePath = dialog.filePath();
+        s.recordFormat = dialog.format();
+        s.recordVideo = dialog.recordVideo();
+        s.recordAudio = dialog.recordAudio();
+        InsynicDeviceSettingsProfile::instance().saveSettings(serial, s);
+
+        for (InsynicDeviceWindow *w : m_deviceWindows) {
+            if (w->serial() == serial) {
+                QMessageBox::information(this, tr("Record Settings"),
                     tr("New settings will be applied on next connection.\n"
                        "Please disconnect and reconnect the device."));
                 break;
@@ -572,6 +632,40 @@ InsynicMainWindow::onNetworkConnectOptionSelected()
     }
 
     refreshDeviceList();
+}
+
+void
+InsynicMainWindow::onDisconnectNetworkDeviceRequested(const QString &serial)
+{
+    // Confirm before disconnecting
+    QMessageBox::StandardButton reply = QMessageBox::question(
+        this, tr("Disconnect Network Device"),
+        tr("Disconnect network device %1?\n\nThis will run 'adb disconnect' for this device.")
+            .arg(serial),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+
+    if (reply != QMessageBox::Yes) {
+        return;
+    }
+
+    // If device window is connected, close it first
+    for (InsynicDeviceWindow *w : m_deviceWindows) {
+        if (w->serial() == serial) {
+            w->close();
+            break;
+        }
+    }
+
+    bool ok = m_fileManager->disconnectDevice(serial);
+    refreshDeviceList();
+
+    if (ok) {
+        QMessageBox::information(this, tr("Success"),
+            tr("Network device %1 has been disconnected.").arg(serial));
+    } else {
+        QMessageBox::warning(this, tr("Error"),
+            tr("Failed to disconnect network device %1.").arg(serial));
+    }
 }
 
 void

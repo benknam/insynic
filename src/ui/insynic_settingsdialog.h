@@ -45,12 +45,22 @@ public:
     void setControlEnabled(bool on);
     bool controlEnabled() const;
 
+    void setAudioEnabled(bool on);
+    bool audioEnabled() const;
+    void setAudioBitRate(int kbps);
+    int audioBitRate() const;
+    void setAudioCodec(int codec);
+    int audioCodec() const;
+    void setAudioSource(int source);
+    int audioSource() const;
+
 signals:
     void settingsChanged();
 
 private slots:
     void onApplyClicked();
     void onResetClicked();
+    void onAudioToggled(bool enabled);
 
 private:
     void setupUi();
@@ -68,9 +78,19 @@ private:
     QCheckBox *m_disableScreensaverCheck;
     QCheckBox *m_controlEnabledCheck;
 
+    QCheckBox *m_audioEnabledCheck;
+    QSpinBox *m_audioBitRateSpinBox;
+    QComboBox *m_audioBitRateComboBox;
+    QComboBox *m_audioCodecComboBox;
+    QComboBox *m_audioSourceComboBox;
+
     int m_originalMaxSize;
     int m_originalMaxFps;
     int m_originalBitRate;
+    bool m_originalAudioEnabled;
+    int m_originalAudioBitRate;
+    int m_originalAudioCodec;
+    int m_originalAudioSource;
 };
 
 #endif

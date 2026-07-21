@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(insynic VERSION 1.21 LANGUAGES C CXX)
+project(insynic VERSION 1.22 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -74,6 +74,8 @@ set(TRANSLATION_TS_FILES
 )
 
 add_custom_command(TARGET insynic POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${CMAKE_BINARY_DIR}/insynic.app/Contents/Resources/
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${TRANSLATION_TS_FILES}
         ${CMAKE_BINARY_DIR}/insynic.app/Contents/Resources/

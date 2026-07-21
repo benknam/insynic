@@ -34,6 +34,8 @@ signals:
     void networkConnectOptionSelected();
     void refreshRequested();
     void deviceSettingsRequested(const QString &serial);
+    void recordSettingsRequested(const QString &serial);
+    void disconnectNetworkDeviceRequested(const QString &serial);
 
 public slots:
     void updateDeviceList(const QStringList &devices, const QMap<QString, QString> &deviceNames = QMap<QString, QString>());

@@ -21,6 +21,14 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
                                          bool powerOn,
                                          bool disableScreensaver,
                                          bool controlEnabled,
+                                         bool audioEnabled,
+                                         int audioBitRate,
+                                         int audioCodec,
+                                         int audioSource,
+                                         const QString &recordFilePath,
+                                         int recordFormat,
+                                         bool recordVideo,
+                                         bool recordAudio,
                                          QWidget *parent)
     : QWidget(parent)
     , m_serial(serial)
@@ -34,6 +42,14 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
     , m_powerOn(powerOn)
     , m_disableScreensaver(disableScreensaver)
     , m_controlEnabled(controlEnabled)
+    , m_audioEnabled(audioEnabled)
+    , m_audioBitRate(audioBitRate)
+    , m_audioCodec(audioCodec)
+    , m_audioSource(audioSource)
+    , m_recordFilePath(recordFilePath)
+    , m_recordFormat(recordFormat)
+    , m_recordVideo(recordVideo)
+    , m_recordAudio(recordAudio)
     , m_scrcpy(nullptr)
     , m_connected(false)
     , m_isClosing(false)
@@ -102,7 +118,10 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
     config.max_fps = maxFps;
     config.video_bit_rate = videoBitRate;
     config.video_enabled = true;
-    config.audio_enabled = false;
+    config.audio_enabled = audioEnabled;
+    config.audio_bit_rate = audioBitRate * 1000;  // convert kbps to bps
+    config.audio_codec = audioCodec;
+    config.audio_source = audioSource;
     config.control_enabled = controlEnabled;
     config.turn_screen_off = turnScreenOff;
     config.stay_awake = stayAwake;
@@ -113,6 +132,21 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
     config.window_height = 0;
     config.window_x = 0;
     config.window_y = 0;
+
+    // Recording options: only apply if a record file path is provided
+    if (!recordFilePath.isEmpty()) {
+        // Save the byte array as member to prevent dangling pointer
+        m_recordFileData = recordFilePath.toUtf8();
+        config.record_filename = m_recordFileData.constData();
+        config.record_format = recordFormat;
+        config.record_video = recordVideo;
+        config.record_audio = recordAudio;
+    } else {
+        config.record_filename = NULL;
+        config.record_format = 0;
+        config.record_video = false;
+        config.record_audio = false;
+    }
 
     qDebug() << "[DeviceWindow] Creating scrcpy instance...";
     m_scrcpy = insynic_scrcpy_create(&config);

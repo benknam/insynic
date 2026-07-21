@@ -5,6 +5,7 @@ add_library(insynic_ui STATIC
     insynic_mainwindow.cpp
     insynic_filebrowser.cpp
     insynic_settingsdialog.cpp
+    insynic_recorddialog.cpp
     insynic_networkdialog.cpp
     insynic_customtranslator.cpp
     insynic_devicewindow.cpp

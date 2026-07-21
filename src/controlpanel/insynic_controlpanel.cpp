@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <QRegularExpression>
 
 InsynicControlPanel::InsynicControlPanel(QWidget *parent)
     : QWidget(parent)
@@ -402,7 +403,20 @@ InsynicControlPanel::onDeviceListContextMenu(const QPoint &pos)
         connect(settingsAction, &QAction::triggered, this, [this, serial]() {
             emit deviceSettingsRequested(serial);
         });
+        QAction *recordAction = menu.addAction(tr("Record Settings..."));
+        connect(recordAction, &QAction::triggered, this, [this, serial]() {
+            emit recordSettingsRequested(serial);
+        });
         menu.addSeparator();
+
+        // Detect network device (serial format: IP:port)
+        if (serial.contains(QRegularExpression("^\\d+\\.\\d+\\.\\d+\\.\\d+:\\d+$"))) {
+            QAction *disconnectNetAction = menu.addAction(tr("Disconnect Network Device"));
+            connect(disconnectNetAction, &QAction::triggered, this, [this, serial]() {
+                emit disconnectNetworkDeviceRequested(serial);
+            });
+            menu.addSeparator();
+        }
     }
 
     QAction *connectAllAction = menu.addAction(tr("Connect All Devices"));

@@ -101,14 +101,14 @@ InsynicSidePanel::setConnected(bool connected, bool isNetworkConnection)
 {
     m_connected = connected;
     m_isNetworkConnection = isNetworkConnection;
-    
+
     if (isNetworkConnection) {
         m_otgBtn->hide();
     } else {
         m_otgBtn->show();
         m_otgBtn->setEnabled(connected);
     }
-    
+
     m_disconnectBtn->setEnabled(connected);
 }
 

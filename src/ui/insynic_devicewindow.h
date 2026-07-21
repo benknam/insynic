@@ -25,6 +25,14 @@ public:
                                   bool powerOn = false,
                                   bool disableScreensaver = false,
                                   bool controlEnabled = true,
+                                  bool audioEnabled = false,
+                                  int audioBitRate = 128,
+                                  int audioCodec = 0,
+                                  int audioSource = 0,
+                                  const QString &recordFilePath = QString(),
+                                  int recordFormat = 0,
+                                  bool recordVideo = true,
+                                  bool recordAudio = false,
                                   QWidget *parent = nullptr);
     ~InsynicDeviceWindow();
 
@@ -70,6 +78,15 @@ private:
     bool m_powerOn;
     bool m_disableScreensaver;
     bool m_controlEnabled;
+    bool m_audioEnabled;
+    int m_audioBitRate;
+    int m_audioCodec;
+    int m_audioSource;
+    QString m_recordFilePath;
+    int m_recordFormat;
+    bool m_recordVideo;
+    bool m_recordAudio;
+    QByteArray m_recordFileData;
     
     struct insynic_scrcpy *m_scrcpy;
     bool m_connected;

@@ -32,12 +32,20 @@ struct insynic_scrcpy_config {
     uint32_t video_bit_rate;
     bool video_enabled;
     bool audio_enabled;
+    uint32_t audio_bit_rate;
+    int audio_codec;  // 0=OPUS, 1=AAC
+    int audio_source; // 0=OUTPUT, 1=MIC, 2=PLAYBACK
     bool control_enabled;
     bool turn_screen_off;
     bool stay_awake;
     bool power_on;
     bool disable_screensaver;
     bool otg_mode;
+    // Recording
+    const char *record_filename;  // NULL = no recording
+    int record_format;            // 0=auto,1=mp4,2=mkv,3=m4a,4=mka,5=opus,6=aac,7=flac,8=wav
+    bool record_video;            // record video stream
+    bool record_audio;            // record audio stream
     int window_x;
     int window_y;
     int window_width;

@@ -108,6 +108,17 @@ InsynicFileManager::connectDevice(const QString &ip, int port)
     return output.contains("connected") || output.contains("already connected");
 }
 
+bool
+InsynicFileManager::disconnectDevice(const QString &address)
+{
+    bool ok;
+    QString output = runAdb(QStringList() << "disconnect" << address, &ok);
+    if (!ok) {
+        return false;
+    }
+    return output.contains("disconnected");
+}
+
 QString
 InsynicFileManager::getDeviceName(const QString &serial)
 {

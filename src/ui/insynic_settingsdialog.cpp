@@ -132,6 +132,56 @@ void InsynicSettingsDialog::setupUi()
 
     mainLayout->addWidget(scrcpyGroup);
 
+    QGroupBox *audioGroup = new QGroupBox(tr("Audio Settings"), this);
+    QFormLayout *audioLayout = new QFormLayout(audioGroup);
+
+    m_audioEnabledCheck = new QCheckBox(tr("Enable audio streaming"), this);
+    m_audioEnabledCheck->setToolTip(tr("Stream device audio to the computer."));
+    audioLayout->addRow(m_audioEnabledCheck);
+
+    QHBoxLayout *audioBitRateLayout = new QHBoxLayout();
+    m_audioBitRateSpinBox = new QSpinBox(this);
+    m_audioBitRateSpinBox->setRange(16, 512);
+    m_audioBitRateSpinBox->setSingleStep(16);
+    m_audioBitRateSpinBox->setValue(128);
+    m_audioBitRateSpinBox->setSuffix(" kbps");
+    m_audioBitRateComboBox = new QComboBox(this);
+    m_audioBitRateComboBox->addItem(tr("64 kbps"), 64);
+    m_audioBitRateComboBox->addItem(tr("128 kbps"), 128);
+    m_audioBitRateComboBox->addItem(tr("192 kbps"), 192);
+    m_audioBitRateComboBox->addItem(tr("256 kbps"), 256);
+    m_audioBitRateComboBox->addItem(tr("Custom"), 0);
+    audioBitRateLayout->addWidget(m_audioBitRateSpinBox);
+    audioBitRateLayout->addWidget(m_audioBitRateComboBox);
+    audioLayout->addRow(tr("Audio Bit Rate:"), audioBitRateLayout);
+
+    connect(m_audioBitRateComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [this](int index) {
+                int value = m_audioBitRateComboBox->itemData(index).toInt();
+                if (value > 0) {
+                    m_audioBitRateSpinBox->setValue(value);
+                    m_audioBitRateSpinBox->setEnabled(false);
+                } else {
+                    m_audioBitRateSpinBox->setEnabled(true);
+                }
+            });
+
+    m_audioCodecComboBox = new QComboBox(this);
+    m_audioCodecComboBox->addItem(tr("OPUS (default)"), 0);
+    m_audioCodecComboBox->addItem(tr("AAC"), 1);
+    audioLayout->addRow(tr("Audio Codec:"), m_audioCodecComboBox);
+
+    m_audioSourceComboBox = new QComboBox(this);
+    m_audioSourceComboBox->addItem(tr("Output (system audio)"), 0);
+    m_audioSourceComboBox->addItem(tr("Microphone"), 1);
+    m_audioSourceComboBox->addItem(tr("Playback (requires Android 11+)"), 2);
+    audioLayout->addRow(tr("Audio Source:"), m_audioSourceComboBox);
+
+    mainLayout->addWidget(audioGroup);
+
+    connect(m_audioEnabledCheck, &QCheckBox::toggled, this, &InsynicSettingsDialog::onAudioToggled);
+    onAudioToggled(m_audioEnabledCheck->isChecked());
+
     QDialogButtonBox *buttonBox = new QDialogButtonBox(
         QDialogButtonBox::Apply | QDialogButtonBox::Reset | QDialogButtonBox::Cancel,
         this);
@@ -255,6 +305,74 @@ bool InsynicSettingsDialog::controlEnabled() const
     return m_controlEnabledCheck->isChecked();
 }
 
+void InsynicSettingsDialog::setAudioEnabled(bool on)
+{
+    m_audioEnabledCheck->setChecked(on);
+    onAudioToggled(on);
+}
+
+bool InsynicSettingsDialog::audioEnabled() const
+{
+    return m_audioEnabledCheck->isChecked();
+}
+
+void InsynicSettingsDialog::setAudioBitRate(int kbps)
+{
+    m_audioBitRateSpinBox->setValue(kbps);
+    m_originalAudioBitRate = kbps;
+
+    int index = m_audioBitRateComboBox->findData(kbps);
+    if (index >= 0) {
+        m_audioBitRateComboBox->setCurrentIndex(index);
+        m_audioBitRateSpinBox->setEnabled(false);
+    } else {
+        m_audioBitRateComboBox->setCurrentIndex(m_audioBitRateComboBox->count() - 1);
+        m_audioBitRateSpinBox->setEnabled(true);
+    }
+}
+
+int InsynicSettingsDialog::audioBitRate() const
+{
+    return m_audioBitRateSpinBox->value();
+}
+
+void InsynicSettingsDialog::setAudioCodec(int codec)
+{
+    m_audioCodecComboBox->setCurrentIndex(codec);
+    m_originalAudioCodec = codec;
+}
+
+int InsynicSettingsDialog::audioCodec() const
+{
+    return m_audioCodecComboBox->currentData().toInt();
+}
+
+void InsynicSettingsDialog::setAudioSource(int source)
+{
+    m_audioSourceComboBox->setCurrentIndex(source);
+    m_originalAudioSource = source;
+}
+
+int InsynicSettingsDialog::audioSource() const
+{
+    return m_audioSourceComboBox->currentData().toInt();
+}
+
+void InsynicSettingsDialog::onAudioToggled(bool enabled)
+{
+    m_audioBitRateSpinBox->setEnabled(enabled);
+    m_audioBitRateComboBox->setEnabled(enabled);
+    m_audioCodecComboBox->setEnabled(enabled);
+    m_audioSourceComboBox->setEnabled(enabled);
+
+    // Restore spinbox enabled state based on combobox selection
+    if (enabled) {
+        int idx = m_audioBitRateComboBox->currentIndex();
+        int value = m_audioBitRateComboBox->itemData(idx).toInt();
+        m_audioBitRateSpinBox->setEnabled(value == 0);
+    }
+}
+
 void InsynicSettingsDialog::onApplyClicked()
 {
     emit settingsChanged();
@@ -266,4 +384,8 @@ void InsynicSettingsDialog::onResetClicked()
     setMaxSize(m_originalMaxSize);
     setMaxFps(m_originalMaxFps);
     setVideoBitRate(m_originalBitRate);
+    setAudioEnabled(m_originalAudioEnabled);
+    setAudioBitRate(m_originalAudioBitRate);
+    setAudioCodec(m_originalAudioCodec);
+    setAudioSource(m_originalAudioSource);
 }

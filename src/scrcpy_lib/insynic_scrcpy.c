@@ -8,6 +8,8 @@
 #include <string.h>
 #include <SDL3/SDL.h>
 
+FILE *g_direct_log_file = NULL;
+
 #include "audio_player.h"
 #include "controller.h"
 #include "decoder.h"
@@ -25,6 +27,7 @@
 #include "uhid/mouse_uhid.h"
 #include "usb/aoa_hid.h"
 #include "usb/gamepad_aoa.h"
+#include "recorder.h"
 #include "usb/keyboard_aoa.h"
 #include "usb/mouse_aoa.h"
 #include "usb/scrcpy_otg.h"
@@ -45,6 +48,7 @@ struct insynic_scrcpy {
     struct sc_decoder audio_decoder;
     struct sc_controller controller;
     struct sc_file_pusher file_pusher;
+    struct sc_recorder recorder;
     struct sc_uhid_devices uhid_devices;
 
     union {
@@ -60,6 +64,8 @@ struct insynic_scrcpy {
     bool controller_started;
     bool screen_initialized;
     bool file_pusher_initialized;
+    bool recorder_initialized;
+    bool recorder_started;
     bool video_demuxer_started;
     bool audio_demuxer_started;
 
@@ -90,6 +96,10 @@ static bool
 insynic_scrcpy_event_watch(void *userdata, SDL_Event *event);
 
 static int s_screen_count = 0;
+
+static void
+insynic_recorder_on_ended(struct sc_recorder *recorder, bool success,
+                          void *userdata);
 
 static void
 set_state(struct insynic_scrcpy *s, enum insynic_scrcpy_state state) {
@@ -279,7 +289,20 @@ insynic_scrcpy_create(const struct insynic_scrcpy_config *config) {
     s->options.audio = config->audio_enabled;
     s->options.audio_playback = config->audio_enabled;
     if (config->audio_enabled) {
-        s->options.audio_source = SC_AUDIO_SOURCE_OUTPUT;
+        switch (config->audio_source) {
+            case 0: s->options.audio_source = SC_AUDIO_SOURCE_OUTPUT; break;
+            case 1: s->options.audio_source = SC_AUDIO_SOURCE_MIC; break;
+            case 2: s->options.audio_source = SC_AUDIO_SOURCE_PLAYBACK; break;
+            default: s->options.audio_source = SC_AUDIO_SOURCE_OUTPUT; break;
+        }
+        switch (config->audio_codec) {
+            case 0: s->options.audio_codec = SC_CODEC_OPUS; break;
+            case 1: s->options.audio_codec = SC_CODEC_AAC; break;
+            default: s->options.audio_codec = SC_CODEC_OPUS; break;
+        }
+        if (config->audio_bit_rate > 0) {
+            s->options.audio_bit_rate = config->audio_bit_rate;
+        }
     }
     s->options.control = config->control_enabled;
     s->options.turn_screen_off = config->turn_screen_off;
@@ -319,6 +342,22 @@ insynic_scrcpy_create(const struct insynic_scrcpy_config *config) {
         if (fps_buf) {
             snprintf(fps_buf, 16, "%d", config->max_fps);
             s->options.max_fps = fps_buf;
+        }
+    }
+
+    // Recording options
+    if (config->record_filename) {
+        s->options.record_filename = strdup(config->record_filename);
+        switch (config->record_format) {
+            case 1: s->options.record_format = SC_RECORD_FORMAT_MP4; break;
+            case 2: s->options.record_format = SC_RECORD_FORMAT_MKV; break;
+            case 3: s->options.record_format = SC_RECORD_FORMAT_M4A; break;
+            case 4: s->options.record_format = SC_RECORD_FORMAT_MKA; break;
+            case 5: s->options.record_format = SC_RECORD_FORMAT_OPUS; break;
+            case 6: s->options.record_format = SC_RECORD_FORMAT_AAC; break;
+            case 7: s->options.record_format = SC_RECORD_FORMAT_FLAC; break;
+            case 8: s->options.record_format = SC_RECORD_FORMAT_WAV; break;
+            default: s->options.record_format = SC_RECORD_FORMAT_AUTO; break;
         }
     }
 
@@ -419,6 +458,12 @@ insynic_scrcpy_destroy(struct insynic_scrcpy *s) {
     if (s->file_pusher_initialized) {
         sc_file_pusher_destroy(&s->file_pusher);
     }
+
+    if (s->recorder_initialized) {
+        LOGI("[insynic_scrcpy] Destroying recorder");
+        sc_recorder_destroy(&s->recorder);
+        s->recorder_initialized = false;
+    }
     
     LOGI("[insynic_scrcpy] Destroying server");
     sc_server_destroy(&s->server);
@@ -471,6 +516,19 @@ insynic_scrcpy_init_main_thread(void *data) {
                         &audio_demuxer_cbs, s);
     }
 
+    // Initialize recorder before decoders so it receives packets first
+    if (opts->record_filename) {
+        static const struct sc_recorder_callbacks recorder_cbs = {
+            .on_ended = insynic_recorder_on_ended,
+        };
+        if (sc_recorder_init(&s->recorder, opts->record_filename,
+                             opts->record_format, opts->video,
+                             opts->audio, opts->record_orientation,
+                             &recorder_cbs, s)) {
+            s->recorder_initialized = true;
+        }
+    }
+
     bool needs_video_decoder = opts->video_playback;
     bool needs_audio_decoder = opts->audio_playback;
 
@@ -483,6 +541,18 @@ insynic_scrcpy_init_main_thread(void *data) {
         sc_decoder_init(&s->audio_decoder, "audio");
         sc_packet_source_add_sink(&s->audio_demuxer.packet_source,
                                   &s->audio_decoder.packet_sink);
+    }
+
+    // Connect recorder sinks to demuxers after decoders
+    if (s->recorder_initialized) {
+        if (opts->video) {
+            sc_packet_source_add_sink(&s->video_demuxer.packet_source,
+                                      &s->recorder.video_packet_sink);
+        }
+        if (opts->audio) {
+            sc_packet_source_add_sink(&s->audio_demuxer.packet_source,
+                                      &s->recorder.audio_packet_sink);
+        }
     }
 
     struct sc_controller *controller = NULL;
@@ -606,6 +676,15 @@ insynic_scrcpy_init_main_thread(void *data) {
         s->audio_demuxer_started = true;
     }
 
+    // Start recorder thread after demuxers are running
+    if (s->recorder_initialized) {
+        if (sc_recorder_start(&s->recorder)) {
+            s->recorder_started = true;
+        } else {
+            s->recorder_initialized = false;
+        }
+    }
+
     s->window_ready = true;
     sc_mutex_lock(&s->server_mutex);
     sc_cond_signal(&s->server_cond);
@@ -619,6 +698,14 @@ insynic_scrcpy_init_main_thread_safe(struct insynic_scrcpy *s) {
     }
     insynic_scrcpy_init_main_thread(s);
     return s->window_ready;
+}
+
+static void
+insynic_recorder_on_ended(struct sc_recorder *recorder, bool success,
+                          void *userdata) {
+    (void) recorder;
+    (void) userdata;
+    (void) success;
 }
 
 static int
@@ -723,6 +810,10 @@ end:
         LOGI("[insynic_scrcpy] Stopping file pusher for %s", s->server.serial);
         sc_file_pusher_stop(&s->file_pusher);
     }
+    // Stop recorder BEFORE joining demuxers (recorder receives packets from demuxers)
+    if (s->recorder_started) {
+        sc_recorder_stop(&s->recorder);
+    }
     if (s->screen_initialized) {
         LOGI("[insynic_scrcpy] Interrupting screen for %s", s->server.serial);
         sc_screen_interrupt(&s->screen);
@@ -748,6 +839,11 @@ end:
         LOGI("[insynic_scrcpy] Joining audio demuxer for %s", s->server.serial);
         sc_demuxer_join(&s->audio_demuxer);
         LOGI("[insynic_scrcpy] Audio demuxer joined for %s", s->server.serial);
+    }
+
+    // Join recorder AFTER demuxers (recorder thread waits for demuxers to stop pushing)
+    if (s->recorder_started) {
+        sc_recorder_join(&s->recorder);
     }
 
     if (s->screen_initialized) {

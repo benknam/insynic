@@ -51,7 +51,9 @@ private slots:
     void onAboutClicked();
     void onLanguageChanged(QAction *action);
     void onNetworkConnectOptionSelected();
+    void onDisconnectNetworkDeviceRequested(const QString &serial);
     void onDeviceSettingsRequested(const QString &serial);
+    void onRecordSettingsRequested(const QString &serial);
     void onDeviceWindowClosed(const QString &serial);
     void processGlobalSdlEvents();
     void disconnectNextDevice();
