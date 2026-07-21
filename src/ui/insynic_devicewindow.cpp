@@ -518,6 +518,8 @@ InsynicDeviceWindow::processSdlEvents()
     if (!m_scrcpy) {
         return;
     }
+    // Note: This function calls SDL_PollEvent which competes with MainWindow's processGlobalSdlEvents
+    // The MainWindow's timer handles all event polling; this is kept for backwards compatibility
     insynic_scrcpy_process_events(m_scrcpy);
 }
 
@@ -775,22 +777,55 @@ InsynicDeviceWindow::eventFilter(QObject *obj, QEvent *event)
 void
 InsynicDeviceWindow::onOtgInputRequested()
 {
+    qDebug() << "[OTG] ===== onOtgInputRequested called, serial:" << m_serial
+             << "m_otgMode:" << m_otgMode << "m_connected:" << m_connected << "=====";
+
     if (m_otgMode) {
+        qDebug() << "[OTG] Stopping OTG mode for serial:" << m_serial;
         if (m_otgProcess) {
+            qDebug() << "[OTG] Terminating OTG process, pid:" << m_otgProcess->processId();
             m_otgProcess->terminate();
             m_otgProcess = nullptr;
         }
         m_otgMode = false;
+        qDebug() << "[OTG] OTG mode stopped for serial:" << m_serial;
         return;
     }
 
-    QString scrcpyPath = "/Users/avenue/IDE/scrcpy-macos-x86_64-v4.0/scrcpy";
-    if (!QFile::exists(scrcpyPath)) {
-        scrcpyPath = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("scrcpy");
+    qDebug() << "[OTG] Starting OTG mode for serial:" << m_serial;
+
+    // Check scrcpy connection state before starting OTG
+    if (m_scrcpy) {
+        enum insynic_scrcpy_state st = insynic_scrcpy_get_state(m_scrcpy);
+        qDebug() << "[OTG] Current scrcpy state:" << st
+                 << "(0=NONE,1=CONNECTING,2=CONNECTED,3=DISCONNECTED,4=ERROR)";
+        bool running = insynic_scrcpy_is_running(m_scrcpy);
+        qDebug() << "[OTG] Scrcpy is running:" << running;
+        bool screenInit = insynic_scrcpy_is_screen_initialized(m_scrcpy);
+        qDebug() << "[OTG] Screen initialized:" << screenInit;
+    } else {
+        qDebug() << "[OTG] WARNING: m_scrcpy is null!";
     }
-    if (!QFile::exists(scrcpyPath)) {
+
+    QString scrcpyPath;
+    QString appDir = QCoreApplication::applicationDirPath();
+    // Look in Contents/Resources/ (app bundle)
+    QString bundlePath = QDir(appDir).absoluteFilePath("../Resources/scrcpy");
+    if (QFile::exists(bundlePath)) {
+        scrcpyPath = QDir::cleanPath(bundlePath);
+    }
+    // Fallback: dev environment
+    if (scrcpyPath.isEmpty()) {
+        QString devPath = "/Users/avenue/IDE/scrcpy-macos-x86_64-v4.0/scrcpy";
+        if (QFile::exists(devPath)) {
+            scrcpyPath = devPath;
+        }
+    }
+    // Fallback: system PATH
+    if (scrcpyPath.isEmpty()) {
         scrcpyPath = "scrcpy";
     }
+    qDebug() << "[OTG] Using scrcpy path:" << scrcpyPath;
 
     QStringList args;
     args << "--otg";
@@ -820,25 +855,56 @@ InsynicDeviceWindow::onOtgInputRequested()
     args << "--window-height" << "100";
     args << "--window-title" << "OTG Input - Cmd+Q to exit";
 
+    qDebug() << "[OTG] Starting OTG process with args:" << args;
+
     m_otgProcess = new QProcess(this);
+    connect(m_otgProcess, &QProcess::started, this, [this]() {
+        qDebug() << "[OTG] OTG process STARTED successfully, pid:" << m_otgProcess->processId()
+                 << "for serial:" << m_serial;
+    });
+    connect(m_otgProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+        qDebug() << "[OTG] OTG process ERROR:" << error << "for serial:" << m_serial;
+    });
     connect(m_otgProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
-        Q_UNUSED(exitCode);
-        Q_UNUSED(exitStatus);
+        qDebug() << "[OTG] OTG process FINISHED, exitCode:" << exitCode
+                 << "exitStatus:" << exitStatus << "for serial:" << m_serial;
         m_otgMode = false;
         if (m_otgProcess) {
             m_otgProcess->deleteLater();
             m_otgProcess = nullptr;
         }
     });
+    connect(m_otgProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+        QByteArray data = m_otgProcess->readAllStandardOutput();
+        qDebug() << "[OTG] OTG stdout:" << data;
+    });
+    connect(m_otgProcess, &QProcess::readyReadStandardError, this, [this]() {
+        QByteArray data = m_otgProcess->readAllStandardError();
+        qDebug() << "[OTG] OTG stderr:" << data;
+    });
 
+    qDebug() << "[OTG] About to call m_otgProcess->start()";
     m_otgProcess->start(scrcpyPath, args);
 
-    if (!m_otgProcess->waitForStarted()) {
+    qDebug() << "[OTG] Waiting for OTG process to start...";
+    if (!m_otgProcess->waitForStarted(5000)) {
+        qDebug() << "[OTG] ERROR: Failed to start OTG process within 5s";
         QMessageBox::critical(this, tr("Error"), tr("Failed to start OTG scrcpy"));
         m_otgProcess->deleteLater();
         m_otgProcess = nullptr;
         return;
     }
+    qDebug() << "[OTG] OTG process started, pid:" << m_otgProcess->processId();
 
     m_otgMode = true;
+    qDebug() << "[OTG] OTG mode enabled for serial:" << m_serial;
+
+    // Check scrcpy connection state AFTER starting OTG
+    if (m_scrcpy) {
+        enum insynic_scrcpy_state st = insynic_scrcpy_get_state(m_scrcpy);
+        qDebug() << "[OTG] Scrcpy state AFTER OTG start:" << st;
+        bool running = insynic_scrcpy_is_running(m_scrcpy);
+        qDebug() << "[OTG] Scrcpy running AFTER OTG start:" << running;
+    }
+    qDebug() << "[OTG] ===== onOtgInputRequested completed =====";
 }

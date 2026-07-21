@@ -5,12 +5,57 @@
 #include <QFile>
 #include <QCoreApplication>
 #include <QTimer>
+#include <QStandardPaths>
+#include <QDateTime>
+#include <QMessageLogContext>
 
 #include "insynic_mainwindow.h"
 #include "insynic_scrcpy.h"
 
+// Global log file for debug output
+static QFile *g_logFile = nullptr;
+
+static void
+messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if (g_logFile && g_logFile->isOpen()) {
+        QString typeName;
+        switch (type) {
+        case QtDebugMsg:    typeName = "DEBUG";   break;
+        case QtInfoMsg:     typeName = "INFO";    break;
+        case QtWarningMsg:  typeName = "WARN";    break;
+        case QtCriticalMsg: typeName = "CRIT";     break;
+        case QtFatalMsg:    typeName = "FATAL";    break;
+        }
+        QString timestamp = QDateTime::currentDateTime().toString("hh:mm:ss.zzz");
+        QString line = QString("[%1] [%2] %3\n").arg(timestamp, typeName, msg);
+        g_logFile->write(line.toUtf8());
+        g_logFile->flush();
+    }
+    fprintf(stderr, "%s\n", msg.toUtf8().constData());
+}
+
 int main(int argc, char *argv[])
 {
+    // Setup log file
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation) + "/insynic_log";
+    QDir().mkpath(logDir);
+    QString logPath = logDir + "/insynic_debug_" +
+                      QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".log";
+    g_logFile = new QFile(logPath);
+    if (g_logFile->open(QIODevice::WriteOnly | QIODevice::Append)) {
+        qInstallMessageHandler(messageHandler);
+        // Redirect stderr to log file to capture SDL/printf logs
+        freopen(logPath.toUtf8().constData(), "a", stderr);
+        fprintf(stderr, "=== insynic debug log started at %s ===\n",
+                QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss").toUtf8().constData());
+        fprintf(stderr, "Log file: %s\n", logPath.toUtf8().constData());
+    } else {
+        fprintf(stderr, "Failed to create log file: %s\n", logPath.toUtf8().constData());
+        delete g_logFile;
+        g_logFile = nullptr;
+    }
+
     QApplication app(argc, argv);
     
     app.setAttribute(Qt::AA_DontUseNativeMenuBar, false);
@@ -57,5 +102,13 @@ int main(int argc, char *argv[])
         w.recreateMenuBar();
     });
 
-    return app.exec();
+    int ret = app.exec();
+
+    if (g_logFile) {
+        g_logFile->close();
+        delete g_logFile;
+        g_logFile = nullptr;
+    }
+
+    return ret;
 }

@@ -96,8 +96,8 @@ add_custom_command(TARGET insynic POST_BUILD
     COMMENT "Creating PkgInfo file"
 )
 
-# Bundle adb and scrcpy-server into app Resources
-set(SCRCPY_BIN_DIR "${CMAKE_SOURCE_DIR}/../../scrcpy-macos-x86_64-v4.0")
+# Bundle adb, scrcpy-server, and scrcpy (for OTG mode) into app Resources
+set(SCRCPY_BIN_DIR "${CMAKE_SOURCE_DIR}/../scrcpy-macos-x86_64-v4.0")
 if(EXISTS "${SCRCPY_BIN_DIR}/adb")
     add_custom_command(TARGET insynic POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -112,6 +112,14 @@ if(EXISTS "${SCRCPY_BIN_DIR}/scrcpy-server")
             "${SCRCPY_BIN_DIR}/scrcpy-server"
             ${CMAKE_BINARY_DIR}/insynic.app/Contents/Resources/
         COMMENT "Copying scrcpy-server to bundle"
+    )
+endif()
+if(EXISTS "${SCRCPY_BIN_DIR}/scrcpy")
+    add_custom_command(TARGET insynic POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${SCRCPY_BIN_DIR}/scrcpy"
+            ${CMAKE_BINARY_DIR}/insynic.app/Contents/Resources/
+        COMMENT "Copying scrcpy (for OTG mode) to bundle"
     )
 endif()
 

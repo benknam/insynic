@@ -103,6 +103,12 @@ insynic_recorder_on_ended(struct sc_recorder *recorder, bool success,
 
 static void
 set_state(struct insynic_scrcpy *s, enum insynic_scrcpy_state state) {
+    const char *state_names[] = {"IDLE", "CONNECTING", "CONNECTED", "DISCONNECTED", "ERROR"};
+    const char *name = (state >= 0 && state <= 4) ? state_names[state] : "UNKNOWN";
+    LOGI("[insynic] State change: %s -> %s for serial=%s",
+         (s->state >= 0 && s->state <= 4) ? state_names[s->state] : "UNKNOWN",
+         name,
+         s->server.serial ? s->server.serial : "(null)");
     s->state = state;
     if (s->state_cb) {
         s->state_cb(state, s->state_cb_userdata);
@@ -1077,17 +1083,21 @@ void
 insynic_scrcpy_handle_event(struct insynic_scrcpy *s, const SDL_Event *event) {
     switch (event->type) {
         case SC_EVENT_SERVER_CONNECTED:
+            LOGI("[insynic] Event SC_EVENT_SERVER_CONNECTED for serial=%s, window_ready=%d",
+                 s->server.serial ? s->server.serial : "(null)", s->window_ready);
             if (!s->window_ready) {
                 insynic_scrcpy_init_main_thread(s);
             }
             set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
             break;
         case SC_EVENT_SERVER_CONNECTION_FAILED:
-            LOGE("Server connection failed");
+            LOGE("[insynic] Event SC_EVENT_SERVER_CONNECTION_FAILED for serial=%s",
+                 s->server.serial ? s->server.serial : "(null)");
             set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
             break;
         case SC_EVENT_DEVICE_DISCONNECTED:
-            LOGW("Device disconnected");
+            LOGW("[insynic] Event SC_EVENT_DEVICE_DISCONNECTED for serial=%s",
+                 s->server.serial ? s->server.serial : "(null)");
             set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
             break;
         default:

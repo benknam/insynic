@@ -760,8 +760,12 @@ InsynicMainWindow::processGlobalSdlEvents()
         return;
     }
 
+    static int s_eventLogCounter = 0;
+    int eventsProcessed = 0;
+
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        eventsProcessed++;
         bool handled = false;
 
         if (event.type == SDL_EVENT_QUIT) {
@@ -839,6 +843,33 @@ InsynicMainWindow::processGlobalSdlEvents()
                         break;
                     }
                 }
+            }
+        }
+    }
+
+    // Periodic state log (every ~5 seconds = ~300 ticks at 16ms)
+    s_eventLogCounter++;
+    if (s_eventLogCounter >= 300) {
+        s_eventLogCounter = 0;
+        qDebug() << "[SDL] Periodic state - deviceWindows:" << m_deviceWindows.size()
+                 << "eventsProcessed:" << eventsProcessed;
+        for (int i = 0; i < m_deviceWindows.size(); i++) {
+            InsynicDeviceWindow *w = m_deviceWindows[i];
+            struct insynic_scrcpy *sc = w->scrcpy();
+            if (sc) {
+                enum insynic_scrcpy_state st = insynic_scrcpy_get_state(sc);
+                bool running = insynic_scrcpy_is_running(sc);
+                bool screenInit = insynic_scrcpy_is_screen_initialized(sc);
+                SDL_Window *win = insynic_scrcpy_get_window(sc);
+                SDL_WindowID winId = win ? SDL_GetWindowID(win) : 0;
+                qDebug() << "[SDL]   Device[" << i << "] serial:" << w->serial()
+                         << "state:" << st << "running:" << running
+                         << "screenInit:" << screenInit
+                         << "windowID:" << winId
+                         << "otgMode:" << w->isOtgMode();
+            } else {
+                qDebug() << "[SDL]   Device[" << i << "] serial:" << w->serial()
+                         << "scrcpy: NULL";
             }
         }
     }
