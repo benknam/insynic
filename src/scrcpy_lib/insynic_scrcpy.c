@@ -103,12 +103,6 @@ insynic_recorder_on_ended(struct sc_recorder *recorder, bool success,
 
 static void
 set_state(struct insynic_scrcpy *s, enum insynic_scrcpy_state state) {
-    const char *state_names[] = {"IDLE", "CONNECTING", "CONNECTED", "DISCONNECTED", "ERROR"};
-    const char *name = (state >= 0 && state <= 4) ? state_names[state] : "UNKNOWN";
-    LOGI("[insynic] State change: %s -> %s for serial=%s",
-         (s->state >= 0 && s->state <= 4) ? state_names[s->state] : "UNKNOWN",
-         name,
-         s->server.serial ? s->server.serial : "(null)");
     s->state = state;
     if (s->state_cb) {
         s->state_cb(state, s->state_cb_userdata);
@@ -152,7 +146,6 @@ static void
 sc_server_on_connected(struct sc_server *server, void *userdata) {
     (void)server;
     struct insynic_scrcpy *s = userdata;
-    LOGI("sc_server_on_connected called for %s!", s->options.serial ? s->options.serial : "unknown");
     set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
 }
 
@@ -160,7 +153,6 @@ static void
 sc_server_on_disconnected(struct sc_server *server, void *userdata) {
     (void)server;
     struct insynic_scrcpy *s = userdata;
-    LOGI("sc_server_on_disconnected called for %s!", s->options.serial ? s->options.serial : "unknown");
     set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
 }
 
@@ -434,8 +426,6 @@ insynic_scrcpy_destroy(struct insynic_scrcpy *s) {
         return;
     }
 
-    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_destroy called for %s =====", s->server.serial);
-
     // Clear state callback first to prevent use-after-free:
     // destroy may trigger set_state() internally, and the callback's userdata
     // (InsynicDeviceWindow*) may have been deleted by Qt's deleteLater().
@@ -443,51 +433,40 @@ insynic_scrcpy_destroy(struct insynic_scrcpy *s) {
     s->state_cb_userdata = NULL;
     
     if (s->screen_initialized) {
-        LOGI("[insynic_scrcpy] Removing event watch");
         SDL_RemoveEventWatch(insynic_scrcpy_event_watch, s);
-        LOGI("[insynic_scrcpy] Destroying screen");
         sc_screen_destroy(&s->screen);
         s->screen_initialized = false;
         s_screen_count--;
-        
+
         if (s_screen_count == 0) {
-            LOGI("[insynic_scrcpy] Last screen destroyed, quitting SDL video/audio");
             SDL_QuitSubSystem(SDL_INIT_VIDEO);
             SDL_QuitSubSystem(SDL_INIT_AUDIO);
         }
     }
     
-    LOGI("[insynic_scrcpy] Destroying controller");
     sc_controller_destroy(&s->controller);
-    
-    LOGI("[insynic_scrcpy] Destroying file pusher");
+
     if (s->file_pusher_initialized) {
         sc_file_pusher_destroy(&s->file_pusher);
     }
 
     if (s->recorder_initialized) {
-        LOGI("[insynic_scrcpy] Destroying recorder");
         sc_recorder_destroy(&s->recorder);
         s->recorder_initialized = false;
     }
-    
-    LOGI("[insynic_scrcpy] Destroying server");
+
     sc_server_destroy(&s->server);
-    
-    LOGI("[insynic_scrcpy] Destroying cond and mutex");
+
     sc_cond_destroy(&s->server_cond);
     sc_mutex_destroy(&s->server_mutex);
-    
+
     if (s->options.serial) {
         char *serial_copy = (char *)s->options.serial;
         free(serial_copy);
         s->options.serial = NULL;
     }
-    
-    LOGI("[insynic_scrcpy] Freeing insynic_scrcpy struct");
+
     free(s);
-    
-    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_destroy completed =====");
 }
 
 static void
@@ -806,14 +785,11 @@ insynic_scrcpy_thread(void *data) {
 
 end:
     s->running = false;
-    LOGI("[insynic_scrcpy] Thread cleanup started for %s", s->server.serial);
 
     if (s->controller_started) {
-        LOGI("[insynic_scrcpy] Stopping controller for %s", s->server.serial);
         sc_controller_stop(&s->controller);
     }
     if (s->file_pusher_initialized) {
-        LOGI("[insynic_scrcpy] Stopping file pusher for %s", s->server.serial);
         sc_file_pusher_stop(&s->file_pusher);
     }
     // Stop recorder BEFORE joining demuxers (recorder receives packets from demuxers)
@@ -821,12 +797,10 @@ end:
         sc_recorder_stop(&s->recorder);
     }
     if (s->screen_initialized) {
-        LOGI("[insynic_scrcpy] Interrupting screen for %s", s->server.serial);
         sc_screen_interrupt(&s->screen);
     }
 
     if (s->server_started) {
-        LOGI("[insynic_scrcpy] Stopping server for %s", s->server.serial);
         sc_server_stop(&s->server);
     }
 
@@ -837,14 +811,10 @@ end:
     // The hide_window call is handled in the main thread via insynic_scrcpy_hide_screen().
 
     if (s->video_demuxer_started) {
-        LOGI("[insynic_scrcpy] Joining video demuxer for %s", s->server.serial);
         sc_demuxer_join(&s->video_demuxer);
-        LOGI("[insynic_scrcpy] Video demuxer joined for %s", s->server.serial);
     }
     if (s->audio_demuxer_started) {
-        LOGI("[insynic_scrcpy] Joining audio demuxer for %s", s->server.serial);
         sc_demuxer_join(&s->audio_demuxer);
-        LOGI("[insynic_scrcpy] Audio demuxer joined for %s", s->server.serial);
     }
 
     // Join recorder AFTER demuxers (recorder thread waits for demuxers to stop pushing)
@@ -853,15 +823,11 @@ end:
     }
 
     if (s->screen_initialized) {
-        LOGI("[insynic_scrcpy] Joining screen for %s", s->server.serial);
         sc_screen_join(&s->screen);
-        LOGI("[insynic_scrcpy] Screen joined for %s", s->server.serial);
     }
 
     if (s->controller_started) {
-        LOGI("[insynic_scrcpy] Joining controller for %s", s->server.serial);
         sc_controller_join(&s->controller);
-        LOGI("[insynic_scrcpy] Controller joined for %s", s->server.serial);
     }
 
     if (s->file_pusher_initialized) {
@@ -873,7 +839,6 @@ end:
     }
 
     s->thread_exited = true;
-    LOGI("[insynic_scrcpy] Thread fully exited (all joins completed)");
     return 0;
 
 server_fail:
@@ -901,7 +866,6 @@ insynic_scrcpy_otg_main_thread(void *data) {
 
     s->running = false;
     s->thread_exited = true;
-    LOGI("[insynic_scrcpy] OTG thread fully exited");
 
     return NULL;
 }
@@ -917,7 +881,6 @@ insynic_scrcpy_otg_thread(void *data) {
         LOGE("Failed to schedule OTG initialization on main thread");
         set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
         s->running = false;
-        LOGI("[insynic_scrcpy] OTG thread error, not destroying main thread (global resource)");
         return -1;
     }
 
@@ -925,7 +888,6 @@ insynic_scrcpy_otg_thread(void *data) {
         SDL_Delay(100);
     }
 
-    LOGI("[insynic_scrcpy] OTG thread exiting normally, not destroying main thread (global resource)");
     return 0;
 }
 
@@ -937,8 +899,6 @@ insynic_scrcpy_start(struct insynic_scrcpy *s) {
     }
     s->running = true;
     s->thread_exited = false;
-
-    LOGI("[insynic_scrcpy] Starting scrcpy thread for %s", s->server.serial);
 
     if (s->options.otg) {
         if (!sc_thread_create(&s->thread, insynic_scrcpy_otg_thread, "insynic_otg", s)) {
@@ -953,8 +913,6 @@ insynic_scrcpy_start(struct insynic_scrcpy *s) {
             return false;
         }
     }
-
-    LOGI("[insynic_scrcpy] Thread created successfully for %s", s->server.serial);
 
     return true;
 }
@@ -1000,32 +958,21 @@ insynic_scrcpy_run_main_thread(struct insynic_scrcpy *s) {
 
 void
 insynic_scrcpy_stop(struct insynic_scrcpy *s) {
-    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_stop called for %s =====", s->server.serial);
-    
     if (!s->running) {
-        LOGI("[insynic_scrcpy] Already stopped, returning");
         return;
     }
-    
-    LOGI("[insynic_scrcpy] Setting running = false");
+
     s->running = false;
-    
-    LOGI("[insynic_scrcpy] Signaling server cond");
+
     sc_mutex_lock(&s->server_mutex);
     sc_cond_signal(&s->server_cond);
     sc_mutex_unlock(&s->server_mutex);
-    
-    LOGI("[insynic_scrcpy] Joining scrcpy thread...");
+
     sc_thread_join(&s->thread, NULL);
-    LOGI("[insynic_scrcpy] Thread joined successfully");
-    
-    LOGI("[insynic_scrcpy] Stopping main thread");
+
     sc_main_thread_stop();
-    
-    LOGI("[insynic_scrcpy] Setting state to DISCONNECTED");
+
     set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
-    
-    LOGI("[insynic_scrcpy] ===== insynic_scrcpy_stop completed =====");
 }
 
 void
@@ -1033,8 +980,7 @@ insynic_scrcpy_request_stop(struct insynic_scrcpy *s) {
     if (!s || !s->running) {
         return;
     }
-    
-    LOGI("[insynic_scrcpy] Requesting stop for %s", s->server.serial);
+
     s->running = false;
     
     sc_mutex_lock(&s->server_mutex);
@@ -1064,10 +1010,8 @@ insynic_scrcpy_join(struct insynic_scrcpy *s) {
     if (!s) {
         return;
     }
-    LOGI("[insynic_scrcpy] join: blocking until thread exits for %s", s->server.serial);
     sc_thread_join(&s->thread, NULL);
     s->thread_exited = true;
-    LOGI("[insynic_scrcpy] join: thread fully exited for %s", s->server.serial);
 }
 
 bool
@@ -1083,21 +1027,17 @@ void
 insynic_scrcpy_handle_event(struct insynic_scrcpy *s, const SDL_Event *event) {
     switch (event->type) {
         case SC_EVENT_SERVER_CONNECTED:
-            LOGI("[insynic] Event SC_EVENT_SERVER_CONNECTED for serial=%s, window_ready=%d",
-                 s->server.serial ? s->server.serial : "(null)", s->window_ready);
             if (!s->window_ready) {
                 insynic_scrcpy_init_main_thread(s);
             }
             set_state(s, INSYNIC_SCRCPY_STATE_CONNECTED);
             break;
         case SC_EVENT_SERVER_CONNECTION_FAILED:
-            LOGE("[insynic] Event SC_EVENT_SERVER_CONNECTION_FAILED for serial=%s",
-                 s->server.serial ? s->server.serial : "(null)");
+            LOGE("Server connection failed");
             set_state(s, INSYNIC_SCRCPY_STATE_ERROR);
             break;
         case SC_EVENT_DEVICE_DISCONNECTED:
-            LOGW("[insynic] Event SC_EVENT_DEVICE_DISCONNECTED for serial=%s",
-                 s->server.serial ? s->server.serial : "(null)");
+            LOGW("Device disconnected");
             set_state(s, INSYNIC_SCRCPY_STATE_DISCONNECTED);
             break;
         default:

@@ -4,7 +4,6 @@
 #include <QIcon>
 #include <QCoreApplication>
 #include <QDir>
-#include <QDebug>
 #include <QRegularExpression>
 
 InsynicControlPanel::InsynicControlPanel(QWidget *parent)
@@ -196,7 +195,6 @@ void
 InsynicControlPanel::onConnectClicked()
 {
     QString serial = currentDevice();
-    qDebug() << "[ControlPanel] onConnectClicked, current device:" << serial;
 
     if (serial.isEmpty() && m_deviceList->count() > 0) {
         QListWidgetItem *firstItem = m_deviceList->item(0);
@@ -204,39 +202,31 @@ InsynicControlPanel::onConnectClicked()
         if (serial.isEmpty()) {
             serial = firstItem->text();
         }
-        qDebug() << "[ControlPanel] No selection, using first device:" << serial;
     }
     if (!serial.isEmpty()) {
         if (m_connectedDevices.contains(serial)) {
-            qDebug() << "[ControlPanel] Device already connected, emitting disconnectRequested";
             emit disconnectRequested(serial);
         } else {
-            qDebug() << "[ControlPanel] Device not connected, emitting connectRequested";
             emit connectRequested(serial);
         }
-    } else {
-        qWarning() << "[ControlPanel] No device selected!";
     }
 }
 
 void
 InsynicControlPanel::onDisconnectAllClicked()
 {
-    qDebug() << "[ControlPanel] onDisconnectAllClicked, emitting disconnectAllRequested";
     emit disconnectAllRequested();
 }
 
 void
 InsynicControlPanel::onRefreshClicked()
 {
-    qDebug() << "[ControlPanel] onRefreshClicked, emitting refreshRequested";
     emit refreshRequested();
 }
 
 void
 InsynicControlPanel::onNetworkConnectClicked()
 {
-    qDebug() << "[ControlPanel] onNetworkConnectClicked, emitting networkConnectOptionSelected";
     emit networkConnectOptionSelected();
 }
 
@@ -248,12 +238,9 @@ InsynicControlPanel::onDeviceDoubleClicked(QListWidgetItem *item)
         if (serial.isEmpty()) {
             serial = item->text();
         }
-        qDebug() << "[ControlPanel] onDeviceDoubleClicked, serial:" << serial;
         if (m_connectedDevices.contains(serial)) {
-            qDebug() << "[ControlPanel] Device connected, emitting disconnectRequested";
             emit disconnectRequested(serial);
         } else {
-            qDebug() << "[ControlPanel] Device not connected, emitting connectRequested";
             emit connectRequested(serial);
         }
     }
@@ -262,8 +249,6 @@ InsynicControlPanel::onDeviceDoubleClicked(QListWidgetItem *item)
 void
 InsynicControlPanel::onDeviceSelectionChanged()
 {
-    QString serial = currentDevice();
-    qDebug() << "[ControlPanel] onDeviceSelectionChanged, current:" << serial;
     updateConnectButtonState();
 }
 
@@ -303,8 +288,6 @@ InsynicControlPanel::updateDeviceList(const QStringList &devices, const QMap<QSt
 void
 InsynicControlPanel::updateConnectionStatus(const QString &serial, bool connected)
 {
-    qDebug() << "[ControlPanel] updateConnectionStatus:" << serial << "- connected:" << connected;
-
     if (connected) {
         if (!m_connectedDevices.contains(serial)) {
             m_connectedDevices.append(serial);
@@ -328,10 +311,8 @@ InsynicControlPanel::updateConnectionStatus(const QString &serial, bool connecte
             item->setForeground(QColor("#4CAF50"));
             m_connectedList->addItem(item);
         }
-        qDebug() << "[ControlPanel] Added to connected list, total:" << m_connectedDevices.size();
     } else {
         m_connectedDevices.removeAll(serial);
-        qDebug() << "[ControlPanel] Removed from connected list, remaining:" << m_connectedDevices.size();
         for (int i = 0; i < m_connectedList->count(); i++) {
             QListWidgetItem *item = m_connectedList->item(i);
             if (item->data(Qt::UserRole).toString() == serial) {
@@ -355,8 +336,6 @@ InsynicControlPanel::updateConnectionStatus(const QString &serial, bool connecte
 void
 InsynicControlPanel::updateConnectionMessage(const QString &serial, const QString &message)
 {
-    qDebug() << "[ControlPanel] updateConnectionMessage:" << serial << "-" << message;
-
     QString deviceName = m_deviceNames.value(serial);
     QString displayName = deviceName.isEmpty() ? serial : deviceName + "【" + serial + "】";
     QString text = displayName + " - " + message;

@@ -39,7 +39,6 @@ public:
     QString serial() const { return m_serial; }
     bool isConnected() const { return m_connected; }
     struct insynic_scrcpy *scrcpy() const { return m_scrcpy; }
-    bool isOtgMode() const { return m_otgMode; }
 
     void addVirtualKey(const VirtualKey &key);
     void removeAllVirtualKeys();

@@ -67,15 +67,6 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
     , m_scrcpyProcess(nullptr)
     , m_isNetworkConnection(serial.contains(":") && serial.contains("."))
 {
-    qDebug() << "[DeviceWindow] ===== Creating device window =====";
-    qDebug() << "[DeviceWindow] serial:" << serial;
-    qDebug() << "[DeviceWindow] adbPath:" << adbPath;
-    qDebug() << "[DeviceWindow] serverPath:" << serverPath;
-    qDebug() << "[DeviceWindow] maxSize:" << maxSize;
-    qDebug() << "[DeviceWindow] maxFps:" << maxFps;
-    qDebug() << "[DeviceWindow] videoBitRate:" << videoBitRate;
-    qDebug() << "[DeviceWindow] isNetworkConnection:" << m_isNetworkConnection;
-
     setWindowTitle(tr("insynic - %1").arg(serial));
     setVisible(false);
 
@@ -98,8 +89,6 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
             this, &InsynicDeviceWindow::onOtgInputRequested);
     connect(m_sidePanel, &InsynicSidePanel::disconnectRequested,
             this, &InsynicDeviceWindow::close);
-
-    qDebug() << "[DeviceWindow] Configuring scrcpy...";
 
     struct insynic_scrcpy_config config;
     memset(&config, 0, sizeof(config));
@@ -148,22 +137,19 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
         config.record_audio = false;
     }
 
-    qDebug() << "[DeviceWindow] Creating scrcpy instance...";
     m_scrcpy = insynic_scrcpy_create(&config);
-    
+
     if (!m_scrcpy) {
         qCritical() << "[DeviceWindow] ERROR: Failed to create scrcpy instance!";
         QMessageBox::critical(this, tr("Error"), tr("Failed to create scrcpy instance"));
         return;
     }
-    qDebug() << "[DeviceWindow] scrcpy instance created successfully";
 
     insynic_scrcpy_set_state_callback(m_scrcpy, stateCallback, this);
 
     m_controlBar->setScrcpy(m_scrcpy);
     m_sidePanel->setScrcpy(m_scrcpy);
 
-    qDebug() << "[DeviceWindow] Starting scrcpy...";
     if (!insynic_scrcpy_start(m_scrcpy)) {
         qCritical() << "[DeviceWindow] ERROR: Failed to start scrcpy!";
         QMessageBox::critical(this, tr("Error"), tr("Failed to start scrcpy"));
@@ -171,7 +157,6 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
         m_scrcpy = nullptr;
         return;
     }
-    qDebug() << "[DeviceWindow] scrcpy started successfully, waiting for connection...";
 
     m_stateTimer = new QTimer(this);
     m_stateTimer->setInterval(100);
@@ -188,24 +173,16 @@ InsynicDeviceWindow::InsynicDeviceWindow(const QString &serial, const QString &a
     connect(m_sdlEventTimer, &QTimer::timeout, this, &InsynicDeviceWindow::processSdlEvents);
 
     qApp->installEventFilter(this);
-    qDebug() << "[DeviceWindow] Device window created successfully";
 }
 
 InsynicDeviceWindow::~InsynicDeviceWindow()
 {
-    qDebug() << "[DeviceWindow] ===== ~InsynicDeviceWindow destructor called, serial:" << m_serial << "=====";
-    qDebug() << "[DeviceWindow] m_scrcpy:" << m_scrcpy
-             << "m_isClosing:" << m_isClosing
-             << "m_connected:" << m_connected;
-
     if (m_scrcpy) {
-        qWarning() << "[DeviceWindow] WARNING: m_scrcpy still exists in destructor! Cleaning up...";
         insynic_scrcpy_destroy(m_scrcpy);
         m_scrcpy = nullptr;
     }
 
     if (m_otgProcess) {
-        qDebug() << "[DeviceWindow] Cleaning up OTG process";
         m_otgProcess->kill();
         m_otgProcess->waitForFinished();
         delete m_otgProcess;
@@ -213,21 +190,17 @@ InsynicDeviceWindow::~InsynicDeviceWindow()
     }
 
     if (m_scrcpyProcess) {
-        qDebug() << "[DeviceWindow] Cleaning up scrcpy process";
         m_scrcpyProcess->kill();
         m_scrcpyProcess->waitForFinished();
         delete m_scrcpyProcess;
         m_scrcpyProcess = nullptr;
     }
-
-    qDebug() << "[DeviceWindow] ===== destructor completed =====";
 }
 
 void
 InsynicDeviceWindow::stateCallback(enum insynic_scrcpy_state state, void *userdata)
 {
     InsynicDeviceWindow *self = static_cast<InsynicDeviceWindow*>(userdata);
-    qDebug() << "[DeviceWindow] stateCallback called, state:" << state;
     self->m_pendingState = state;
     self->m_stateChangePending = true;
 }
@@ -243,32 +216,23 @@ InsynicDeviceWindow::checkState()
     }
     m_stateChangePending = false;
     int state = m_pendingState;
-    qDebug() << "[DeviceWindow] checkState: processing state change, state:" << state;
     handleStateChange((enum insynic_scrcpy_state)state);
 }
 
 void
 InsynicDeviceWindow::handleStateChange(enum insynic_scrcpy_state state)
 {
-    qDebug() << "[DeviceWindow] ===== handleStateChange:" << state
-             << "this=" << this << "serial:" << m_serial
-             << "m_isClosing=" << m_isClosing << "=====";
-
     switch (state) {
     case INSYNIC_SCRCPY_STATE_CONNECTING:
-        qDebug() << "[DeviceWindow] State: CONNECTING";
         emit connectionMessage(m_serial, tr("Starting scrcpy server..."));
         break;
     case INSYNIC_SCRCPY_STATE_CONNECTED:
-        qDebug() << "[DeviceWindow] State: CONNECTED!";
-        qDebug() << "[DeviceWindow] Initializing main thread (screen, decoders, etc.)...";
         if (!insynic_scrcpy_init_main_thread_safe(m_scrcpy)) {
             qCritical() << "[DeviceWindow] ERROR: Failed to initialize main thread!";
             QMessageBox::critical(this, tr("Error"), tr("Failed to initialize screen"));
             close();
             return;
         }
-        qDebug() << "[DeviceWindow] Main thread initialized successfully";
         m_connected = true;
         if (m_controlBar) {
             m_controlBar->setConnected(true);
@@ -276,11 +240,9 @@ InsynicDeviceWindow::handleStateChange(enum insynic_scrcpy_state state)
         if (m_sidePanel) {
             m_sidePanel->setConnected(true, m_isNetworkConnection);
         }
-        qDebug() << "[DeviceWindow] Control bar and side panel updated";
         emit connectionMessage(m_serial, tr("Connected"));
         break;
     case INSYNIC_SCRCPY_STATE_DISCONNECTED:
-        qDebug() << "[DeviceWindow] State: DISCONNECTED";
         m_connected = false;
         if (m_controlBar) {
             m_controlBar->setConnected(false);
@@ -289,7 +251,6 @@ InsynicDeviceWindow::handleStateChange(enum insynic_scrcpy_state state)
             m_sidePanel->setConnected(false, m_isNetworkConnection);
         }
         if (!m_isClosing) {
-            qDebug() << "[DeviceWindow] Emitting disconnected signal";
             emit disconnected(m_serial);
         }
         break;
@@ -303,7 +264,6 @@ InsynicDeviceWindow::handleStateChange(enum insynic_scrcpy_state state)
             m_sidePanel->setConnected(false, m_isNetworkConnection);
         }
         if (!m_isClosing) {
-            qCritical() << "[DeviceWindow] Showing connection error message box";
             emit connectionMessage(m_serial, tr("Connection failed"));
             emit disconnected(m_serial);
             QMessageBox::warning(this, tr("Connection Error"),
@@ -311,10 +271,8 @@ InsynicDeviceWindow::handleStateChange(enum insynic_scrcpy_state state)
         }
         break;
     case INSYNIC_SCRCPY_STATE_IDLE:
-        qDebug() << "[DeviceWindow] State: IDLE";
         break;
     default:
-        qWarning() << "[DeviceWindow] Unknown state:" << state;
         break;
     }
 }
@@ -518,8 +476,6 @@ InsynicDeviceWindow::processSdlEvents()
     if (!m_scrcpy) {
         return;
     }
-    // Note: This function calls SDL_PollEvent which competes with MainWindow's processGlobalSdlEvents
-    // The MainWindow's timer handles all event polling; this is kept for backwards compatibility
     insynic_scrcpy_process_events(m_scrcpy);
 }
 
@@ -560,140 +516,85 @@ InsynicDeviceWindow::sdlWindow() const
 void
 InsynicDeviceWindow::closeEvent(QCloseEvent *event)
 {
-    qDebug() << "[DeviceWindow] ===== closeEvent called, this=" << this
-             << "serial:" << m_serial
-             << "m_isClosing:" << m_isClosing
-             << "m_scrcpy:" << m_scrcpy
-             << "m_connected:" << m_connected << "=====";
-
     if (m_isClosing) {
-        qDebug() << "[DeviceWindow] Already closing (m_isClosing=true), ignore";
         event->ignore();
         return;
     }
 
-    qDebug() << "[DeviceWindow] Setting isClosing flag, this=" << this;
     m_isClosing = true;
     m_closePollCount = 0;
     event->ignore();
 
-    qDebug() << "[DeviceWindow] Stopping timers";
     if (m_stateTimer) {
-        qDebug() << "[DeviceWindow]   Stopping m_stateTimer";
         m_stateTimer->stop();
     }
     if (m_keyContainerTimer) {
-        qDebug() << "[DeviceWindow]   Stopping m_keyContainerTimer";
         m_keyContainerTimer->stop();
     }
     if (m_sdlEventTimer) {
-        qDebug() << "[DeviceWindow]   Stopping m_sdlEventTimer";
         m_sdlEventTimer->stop();
     }
 
-    qDebug() << "[DeviceWindow] Removing event filter";
     qApp->removeEventFilter(this);
 
     if (m_controlBar) {
-        qDebug() << "[DeviceWindow] Closing control bar, addr=" << m_controlBar;
         disconnect(m_controlBar, nullptr, this, nullptr);
         m_controlBar->close();
         m_controlBar = nullptr;
-        qDebug() << "[DeviceWindow] Control bar closed";
     }
 
     if (m_sidePanel) {
-        qDebug() << "[DeviceWindow] Closing side panel, addr=" << m_sidePanel;
         disconnect(m_sidePanel, nullptr, this, nullptr);
         m_sidePanel->close();
         m_sidePanel = nullptr;
-        qDebug() << "[DeviceWindow] Side panel closed";
     }
 
-    qDebug() << "[DeviceWindow] Removing all virtual keys";
     removeAllVirtualKeys();
-    qDebug() << "[DeviceWindow] Virtual keys removed";
 
     if (m_scrcpy) {
-        qDebug() << "[DeviceWindow] Requesting scrcpy stop (async), scrcpy=" << m_scrcpy;
         insynic_scrcpy_request_stop(m_scrcpy);
-        qDebug() << "[DeviceWindow] scrcpy stop requested";
-
-        qDebug() << "[DeviceWindow] Starting close progress timer";
         QTimer::singleShot(10, this, &InsynicDeviceWindow::checkCloseProgress);
     } else {
-        qDebug() << "[DeviceWindow] No scrcpy, finish closing immediately";
         finishClose();
     }
-
-    qDebug() << "[DeviceWindow] closeEvent returning (async close started)";
 }
 
 void
 InsynicDeviceWindow::checkCloseProgress()
 {
-    qDebug() << "[DeviceWindow] checkCloseProgress called, this=" << this
-             << "serial:" << m_serial
-             << "m_scrcpy:" << m_scrcpy
-             << "m_closePollCount:" << m_closePollCount;
-
     if (!m_scrcpy) {
-        qDebug() << "[DeviceWindow] checkCloseProgress: no scrcpy, finish close";
         finishClose();
         return;
     }
 
     bool threadExited = insynic_scrcpy_is_thread_exited(m_scrcpy);
-    qDebug() << "[DeviceWindow] checkCloseProgress: insynic_scrcpy_is_thread_exited returned" << threadExited;
 
     if (!threadExited) {
         m_closePollCount++;
-        qDebug() << "[DeviceWindow] checkCloseProgress: thread still alive, poll" << m_closePollCount;
         if (m_closePollCount <= 20) {
             QTimer::singleShot(10, this, &InsynicDeviceWindow::checkCloseProgress);
             return;
         }
-        qDebug() << "[DeviceWindow] checkCloseProgress: poll timeout (20 polls), blocking join";
         insynic_scrcpy_join(m_scrcpy);
-        qDebug() << "[DeviceWindow] checkCloseProgress: join completed";
     }
-
-    qDebug() << "[DeviceWindow] checkCloseProgress: thread fully exited, proceeding with destroy, scrcpy=" << m_scrcpy;
 
     bool screenInitialized = insynic_scrcpy_is_screen_initialized(m_scrcpy);
-    qDebug() << "[DeviceWindow] checkCloseProgress: screen initialized=" << screenInitialized;
 
     if (screenInitialized) {
-        qDebug() << "[DeviceWindow] Hiding screen";
         insynic_scrcpy_hide_screen(m_scrcpy);
-        qDebug() << "[DeviceWindow] Screen hidden";
     }
 
-    qDebug() << "[DeviceWindow] Destroying scrcpy, addr=" << m_scrcpy;
     insynic_scrcpy_destroy(m_scrcpy);
-    qDebug() << "[DeviceWindow] scrcpy_destroy completed";
     m_scrcpy = NULL;
-    qDebug() << "[DeviceWindow] m_scrcpy set to NULL";
 
-    qDebug() << "[DeviceWindow] scrcpy destroyed, finishing close";
     finishClose();
 }
 
 void
 InsynicDeviceWindow::finishClose()
 {
-    qDebug() << "[DeviceWindow] ===== finishClose called, this=" << this
-             << "serial:" << m_serial
-             << "m_scrcpy:" << m_scrcpy
-             << "m_connected:" << m_connected << "=====";
-
-    qDebug() << "[DeviceWindow] Emitting disconnected signal for serial:" << m_serial;
     emit disconnected(m_serial);
-    qDebug() << "[DeviceWindow] Disconnected signal emitted";
-
-    qDebug() << "[DeviceWindow] finishClose completed, calling deleteLater on this=" << this;
     deleteLater();
-    qDebug() << "[DeviceWindow] deleteLater called";
 }
 
 void
@@ -777,34 +678,13 @@ InsynicDeviceWindow::eventFilter(QObject *obj, QEvent *event)
 void
 InsynicDeviceWindow::onOtgInputRequested()
 {
-    qDebug() << "[OTG] ===== onOtgInputRequested called, serial:" << m_serial
-             << "m_otgMode:" << m_otgMode << "m_connected:" << m_connected << "=====";
-
     if (m_otgMode) {
-        qDebug() << "[OTG] Stopping OTG mode for serial:" << m_serial;
         if (m_otgProcess) {
-            qDebug() << "[OTG] Terminating OTG process, pid:" << m_otgProcess->processId();
             m_otgProcess->terminate();
             m_otgProcess = nullptr;
         }
         m_otgMode = false;
-        qDebug() << "[OTG] OTG mode stopped for serial:" << m_serial;
         return;
-    }
-
-    qDebug() << "[OTG] Starting OTG mode for serial:" << m_serial;
-
-    // Check scrcpy connection state before starting OTG
-    if (m_scrcpy) {
-        enum insynic_scrcpy_state st = insynic_scrcpy_get_state(m_scrcpy);
-        qDebug() << "[OTG] Current scrcpy state:" << st
-                 << "(0=NONE,1=CONNECTING,2=CONNECTED,3=DISCONNECTED,4=ERROR)";
-        bool running = insynic_scrcpy_is_running(m_scrcpy);
-        qDebug() << "[OTG] Scrcpy is running:" << running;
-        bool screenInit = insynic_scrcpy_is_screen_initialized(m_scrcpy);
-        qDebug() << "[OTG] Screen initialized:" << screenInit;
-    } else {
-        qDebug() << "[OTG] WARNING: m_scrcpy is null!";
     }
 
     QString scrcpyPath;
@@ -825,7 +705,6 @@ InsynicDeviceWindow::onOtgInputRequested()
     if (scrcpyPath.isEmpty()) {
         scrcpyPath = "scrcpy";
     }
-    qDebug() << "[OTG] Using scrcpy path:" << scrcpyPath;
 
     QStringList args;
     args << "--otg";
@@ -855,56 +734,25 @@ InsynicDeviceWindow::onOtgInputRequested()
     args << "--window-height" << "100";
     args << "--window-title" << "OTG Input - Cmd+Q to exit";
 
-    qDebug() << "[OTG] Starting OTG process with args:" << args;
-
     m_otgProcess = new QProcess(this);
-    connect(m_otgProcess, &QProcess::started, this, [this]() {
-        qDebug() << "[OTG] OTG process STARTED successfully, pid:" << m_otgProcess->processId()
-                 << "for serial:" << m_serial;
-    });
-    connect(m_otgProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
-        qDebug() << "[OTG] OTG process ERROR:" << error << "for serial:" << m_serial;
-    });
     connect(m_otgProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
-        qDebug() << "[OTG] OTG process FINISHED, exitCode:" << exitCode
-                 << "exitStatus:" << exitStatus << "for serial:" << m_serial;
+        Q_UNUSED(exitCode);
+        Q_UNUSED(exitStatus);
         m_otgMode = false;
         if (m_otgProcess) {
             m_otgProcess->deleteLater();
             m_otgProcess = nullptr;
         }
     });
-    connect(m_otgProcess, &QProcess::readyReadStandardOutput, this, [this]() {
-        QByteArray data = m_otgProcess->readAllStandardOutput();
-        qDebug() << "[OTG] OTG stdout:" << data;
-    });
-    connect(m_otgProcess, &QProcess::readyReadStandardError, this, [this]() {
-        QByteArray data = m_otgProcess->readAllStandardError();
-        qDebug() << "[OTG] OTG stderr:" << data;
-    });
 
-    qDebug() << "[OTG] About to call m_otgProcess->start()";
     m_otgProcess->start(scrcpyPath, args);
 
-    qDebug() << "[OTG] Waiting for OTG process to start...";
     if (!m_otgProcess->waitForStarted(5000)) {
-        qDebug() << "[OTG] ERROR: Failed to start OTG process within 5s";
         QMessageBox::critical(this, tr("Error"), tr("Failed to start OTG scrcpy"));
         m_otgProcess->deleteLater();
         m_otgProcess = nullptr;
         return;
     }
-    qDebug() << "[OTG] OTG process started, pid:" << m_otgProcess->processId();
 
     m_otgMode = true;
-    qDebug() << "[OTG] OTG mode enabled for serial:" << m_serial;
-
-    // Check scrcpy connection state AFTER starting OTG
-    if (m_scrcpy) {
-        enum insynic_scrcpy_state st = insynic_scrcpy_get_state(m_scrcpy);
-        qDebug() << "[OTG] Scrcpy state AFTER OTG start:" << st;
-        bool running = insynic_scrcpy_is_running(m_scrcpy);
-        qDebug() << "[OTG] Scrcpy running AFTER OTG start:" << running;
-    }
-    qDebug() << "[OTG] ===== onOtgInputRequested completed =====";
 }

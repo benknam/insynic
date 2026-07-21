@@ -37,8 +37,6 @@ InsynicFileManager::runAdb(const QStringList &args, bool *ok, int timeoutMs)
     }
     fullArgs << args;
 
-    qDebug() << "[FileManager] runAdb cmd:" << m_adbPath << fullArgs;
-
     QProcess process;
     process.start(m_adbPath, fullArgs);
 
@@ -62,13 +60,6 @@ InsynicFileManager::runAdb(const QStringList &args, bool *ok, int timeoutMs)
     }
 
     QString output = QString::fromUtf8(process.readAllStandardOutput());
-    QString error = QString::fromUtf8(process.readAllStandardError());
-    if (!error.isEmpty()) {
-        qWarning() << "[FileManager] adb stderr:" << error;
-    }
-
-    qDebug() << "[FileManager] runAdb exit=" << process.exitCode()
-             << "outputLen=" << output.size();
     return output;
 }
 
@@ -162,13 +153,8 @@ normalizeRemotePath(const QString &path)
 QVector<AdbFileInfo>
 InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
 {
-    qDebug() << "[FileManager] ===== listFiles called =====";
-    qDebug() << "[FileManager] remotePath:" << remotePath
-             << "current serial:" << m_serial;
-
     QVector<AdbFileInfo> result;
     QString path = normalizeRemotePath(remotePath);
-    qDebug() << "[FileManager] normalized path:" << path;
 
     bool readLinkOk;
     QString realPathOutput = runAdb(
@@ -176,8 +162,6 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
     QString resolvedPath = readLinkOk && !realPathOutput.trimmed().isEmpty()
         ? realPathOutput.trimmed()
         : path;
-    qDebug() << "[FileManager] readLinkOk:" << readLinkOk
-             << "resolvedPath:" << resolvedPath;
 
     bool adbOk = false;
     QString output = runAdb(
@@ -185,17 +169,10 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
     if (ok) *ok = adbOk;
 
     if (!adbOk || output.isEmpty()) {
-        qWarning() << "[FileManager] ls failed or empty output, adbOk:" << adbOk
-                    << "output isEmpty:" << output.isEmpty();
         return result;
     }
 
-    qDebug() << "[FileManager] ls output lines:" << output.count('\n');
-    qDebug() << "[FileManager] ls raw output:\n" << output;
-
     QStringList lines = output.split('\n', Qt::SkipEmptyParts);
-    int matchedCount = 0;
-    int skippedCount = 0;
     for (const QString &line : lines) {
         if (line.startsWith("total ")) {
             continue;
@@ -213,11 +190,8 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
         );
         QRegularExpressionMatch match = re.match(line.trimmed());
         if (!match.hasMatch()) {
-            skippedCount++;
-            qDebug() << "[FileManager] Regex did NOT match line:" << line;
             continue;
         }
-        matchedCount++;
 
         AdbFileInfo info;
         info.permissions = match.captured(1);
@@ -257,9 +231,6 @@ InsynicFileManager::listFiles(const QString &remotePath, bool *ok)
 
         result.append(info);
     }
-
-    qDebug() << "[FileManager] listFiles result: matched=" << matchedCount
-             << "skipped=" << skippedCount << "total entries=" << result.size();
 
     std::sort(result.begin(), result.end(),
               [](const AdbFileInfo &a, const AdbFileInfo &b) {

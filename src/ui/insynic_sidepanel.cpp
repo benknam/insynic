@@ -161,7 +161,6 @@ InsynicSidePanel::onOtgInputRequested()
 void
 InsynicSidePanel::onDisconnectClicked()
 {
-    qDebug() << "[SidePanel] onDisconnectClicked called, emitting disconnectRequested";
     emit disconnectRequested();
 }
 

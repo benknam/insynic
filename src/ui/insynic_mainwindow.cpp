@@ -12,7 +12,6 @@
 #include <QMessageBox>
 #include <QMenuBar>
 #include <QActionGroup>
-#include <QDebug>
 #include <QStyle>
 #include <QDir>
 #include <QLocale>
@@ -123,16 +122,13 @@ InsynicMainWindow::findServerPath()
 void
 InsynicMainWindow::refreshDeviceList()
 {
-    qDebug() << "[MainWindow] refreshDeviceList called";
     QStringList devices = m_fileManager->listDevices();
-    qDebug() << "[MainWindow] Found" << devices.size() << "device(s)";
 
     QMap<QString, QString> deviceNames;
     for (const QString &serial : devices) {
         QString name = m_fileManager->getDeviceName(serial);
         if (!name.isEmpty()) {
             deviceNames[serial] = name;
-            qDebug() << "[MainWindow] Device" << serial << "name:" << name;
         }
     }
 
@@ -255,49 +251,28 @@ InsynicMainWindow::createTrayIcon()
 void
 InsynicMainWindow::onConnectClicked(const QString &serial)
 {
-    qDebug() << "[MainWindow] ===== onConnectClicked called =====";
-    qDebug() << "[MainWindow] Requested serial:" << (serial.isEmpty() ? "(empty - will use first device)" : serial);
-    qDebug() << "[MainWindow] Current device windows count:" << m_deviceWindows.size()
-             << "isDisconnectingAll:" << m_isDisconnectingAll;
-
     QString useSerial = serial;
 
     if (useSerial.isEmpty()) {
-        qDebug() << "[MainWindow] Serial is empty, refreshing device list...";
         QStringList devices = m_fileManager->listDevices();
         m_controlPanel->updateDeviceList(devices);
 
-        qDebug() << "[MainWindow] Found" << devices.size() << "device(s):" << devices;
-
         if (devices.isEmpty()) {
-            qWarning() << "[MainWindow] No devices found!";
             QMessageBox::warning(this, tr("No Device"),
                 tr("No Android device found.\n\n"
                    "Please connect your device via USB and enable USB debugging."));
             return;
         }
         useSerial = devices.first();
-        qDebug() << "[MainWindow] Using first device:" << useSerial;
     }
 
-    qDebug() << "[MainWindow] Checking if device window already exists for:" << useSerial;
     for (InsynicDeviceWindow *w : m_deviceWindows) {
-        qDebug() << "[MainWindow]   existing window serial:" << w->serial()
-                 << "addr=" << w;
         if (w->serial() == useSerial) {
-            qDebug() << "[MainWindow] Device window already exists, raising it";
             w->raise();
             w->activateWindow();
             return;
         }
     }
-
-    qDebug() << "[MainWindow] Creating new device window...";
-    qDebug() << "[MainWindow] adbPath:" << m_adbPath;
-    qDebug() << "[MainWindow] serverPath:" << m_serverPath;
-    qDebug() << "[MainWindow] maxSize:" << m_maxSize;
-    qDebug() << "[MainWindow] maxFps:" << m_maxFps;
-    qDebug() << "[MainWindow] videoBitRate:" << m_videoBitRate;
 
     DeviceStreamingSettings devSettings =
         InsynicDeviceSettingsProfile::instance().loadSettings(useSerial);
@@ -327,7 +302,6 @@ InsynicMainWindow::onConnectClicked(const QString &serial)
         devSettings.recordVideo,
         devSettings.recordAudio);
 
-    qDebug() << "[MainWindow] Connecting deviceWindow signals...";
     connect(deviceWindow, &InsynicDeviceWindow::disconnected,
             this, &InsynicMainWindow::onDeviceWindowClosed);
     connect(deviceWindow, &InsynicDeviceWindow::connectionMessage,
@@ -336,21 +310,15 @@ InsynicMainWindow::onConnectClicked(const QString &serial)
     });
 
     m_deviceWindows.append(deviceWindow);
-    qDebug() << "[MainWindow] Total device windows now:" << m_deviceWindows.size();
     m_controlPanel->updateConnectionStatus(useSerial, true);
     m_controlPanel->updateConnectionMessage(useSerial, tr("Connecting..."));
-    qDebug() << "[MainWindow] onConnectClicked completed (device window hidden, SDL window will show on connect)";
 }
 
 void
 InsynicMainWindow::onDisconnectClicked(const QString &serial)
 {
-    qDebug() << "[MainWindow] ===== onDisconnectClicked called, serial:" << serial << "=====";
-    qDebug() << "[MainWindow] Current device windows count:" << m_deviceWindows.size();
-
     for (int i = 0; i < m_deviceWindows.size(); i++) {
         if (m_deviceWindows[i]->serial() == serial) {
-            qDebug() << "[MainWindow] Found device window at index" << i << ", closing it";
             m_sdlEventTimer->stop();
             m_deviceWindows[i]->close();
             break;
@@ -405,36 +373,28 @@ void
 InsynicMainWindow::disconnectNextDevice()
 {
     if (m_deviceWindows.isEmpty()) {
-        qDebug() << "[MainWindow] All devices disconnected";
         m_isDisconnectingAll = false;
         return;
     }
 
     InsynicDeviceWindow *w = m_deviceWindows.first();
-    qDebug() << "[MainWindow] Disconnecting next device:" << w->serial();
     w->close();
 }
 
 void
 InsynicMainWindow::onFileManagerClicked()
 {
-    qDebug() << "[MainWindow] ===== onFileManagerClicked called =====";
-
     QString selectedSerial = m_controlPanel->currentDevice();
-    qDebug() << "[MainWindow] Control panel selected device:" << selectedSerial;
 
     if (selectedSerial.isEmpty()) {
-        qDebug() << "[MainWindow] No device selected";
         QMessageBox::warning(this, tr("No Device Selected"),
             tr("Please select a device first."));
         return;
     }
 
-    qDebug() << "[MainWindow] Using device serial for file manager:" << selectedSerial;
     m_fileManager->setSerial(selectedSerial);
 
     if (!m_fileBrowser) {
-        qDebug() << "[MainWindow] Creating new file browser dialog";
         m_fileBrowser = new InsynicFileBrowserDialog(m_fileManager, this);
     }
     m_fileBrowser->show();
@@ -675,37 +635,25 @@ InsynicMainWindow::setTouchSyncEnabled(bool enabled)
         return;
     }
     m_touchSyncEnabled = enabled;
-    qDebug() << "[MainWindow] Touch sync" << (enabled ? "enabled" : "disabled");
     emit touchSyncToggled(enabled);
 }
 
 void
 InsynicMainWindow::onDeviceWindowClosed(const QString &serial)
 {
-    qDebug() << "[MainWindow] ===== onDeviceWindowClosed called, serial:" << serial << "=====";
-    qDebug() << "[MainWindow] Current device windows count:" << m_deviceWindows.size();
-    qDebug() << "[MainWindow] isDisconnectingAll:" << m_isDisconnectingAll;
-
     m_controlPanel->updateConnectionStatus(serial, false);
 
-    qDebug() << "[MainWindow] Searching for window to remove...";
     for (int i = 0; i < m_deviceWindows.size(); i++) {
-        qDebug() << "[MainWindow]   index" << i << "serial:" << m_deviceWindows[i]->serial()
-                 << "addr=" << m_deviceWindows[i];
         if (m_deviceWindows[i]->serial() == serial) {
-            qDebug() << "[MainWindow] Removing device window at index" << i;
             m_deviceWindows.removeAt(i);
-            qDebug() << "[MainWindow] Device windows remaining:" << m_deviceWindows.size();
             break;
         }
     }
 
     if (m_isDisconnectingAll) {
-        qDebug() << "[MainWindow] Disconnect all in progress, checking next device...";
         if (m_deviceWindows.isEmpty()) {
             m_isDisconnectingAll = false;
             m_sdlEventTimer->start();
-            qDebug() << "[MainWindow] All devices disconnected, restarting SDL event timer";
         } else {
             QTimer::singleShot(50, this, &InsynicMainWindow::disconnectNextDevice);
         }
@@ -728,15 +676,12 @@ InsynicMainWindow::showEvent(QShowEvent *event)
         int x = screenRect.width() - width() - margin;
         int y = screenRect.height() - height() - margin;
         move(x, y);
-        qDebug() << "[MainWindow] Positioned at bottom-right (" << x << ", " << y << ")";
     }
 }
 
 void
 InsynicMainWindow::closeEvent(QCloseEvent *event)
 {
-    qDebug() << "[MainWindow] closeEvent called";
-
     if (m_sdlEventTimer) {
         m_sdlEventTimer->stop();
     }
@@ -760,12 +705,8 @@ InsynicMainWindow::processGlobalSdlEvents()
         return;
     }
 
-    static int s_eventLogCounter = 0;
-    int eventsProcessed = 0;
-
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        eventsProcessed++;
         bool handled = false;
 
         if (event.type == SDL_EVENT_QUIT) {
@@ -843,33 +784,6 @@ InsynicMainWindow::processGlobalSdlEvents()
                         break;
                     }
                 }
-            }
-        }
-    }
-
-    // Periodic state log (every ~5 seconds = ~300 ticks at 16ms)
-    s_eventLogCounter++;
-    if (s_eventLogCounter >= 300) {
-        s_eventLogCounter = 0;
-        qDebug() << "[SDL] Periodic state - deviceWindows:" << m_deviceWindows.size()
-                 << "eventsProcessed:" << eventsProcessed;
-        for (int i = 0; i < m_deviceWindows.size(); i++) {
-            InsynicDeviceWindow *w = m_deviceWindows[i];
-            struct insynic_scrcpy *sc = w->scrcpy();
-            if (sc) {
-                enum insynic_scrcpy_state st = insynic_scrcpy_get_state(sc);
-                bool running = insynic_scrcpy_is_running(sc);
-                bool screenInit = insynic_scrcpy_is_screen_initialized(sc);
-                SDL_Window *win = insynic_scrcpy_get_window(sc);
-                SDL_WindowID winId = win ? SDL_GetWindowID(win) : 0;
-                qDebug() << "[SDL]   Device[" << i << "] serial:" << w->serial()
-                         << "state:" << st << "running:" << running
-                         << "screenInit:" << screenInit
-                         << "windowID:" << winId
-                         << "otgMode:" << w->isOtgMode();
-            } else {
-                qDebug() << "[SDL]   Device[" << i << "] serial:" << w->serial()
-                         << "scrcpy: NULL";
             }
         }
     }
