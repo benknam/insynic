@@ -396,6 +396,8 @@ InsynicMainWindow::onFileManagerClicked()
 
     if (!m_fileBrowser) {
         m_fileBrowser = new InsynicFileBrowserDialog(m_fileManager, this);
+    } else {
+        m_fileBrowser->refresh();
     }
     m_fileBrowser->show();
     m_fileBrowser->raise();
