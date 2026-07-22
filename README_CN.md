@@ -2,10 +2,9 @@
 
 <div align="center">
 
-<img width="1085" height="517" alt="image" src="https://github.com/user-attachments/assets/b44ffe8b-ca03-4e41-bab1-5d79ecd0992e" />
+<img width="4096" height="2400" alt="insynic" src="https://github.com/user-attachments/assets/a493bcd2-56ee-41cc-bc1d-b2b5b38d31cc" />
 
-<img width="1839" height="1159" alt="image" src="https://github.com/user-attachments/assets/f689e6b5-cef0-40eb-a640-46263ca599e5" />
-1.2预览版.
+<img width="1085" height="517" alt="image" src="https://github.com/user-attachments/assets/b44ffe8b-ca03-4e41-bab1-5d79ecd0992e" />
 
 一个用于在电脑同时控制多台安卓设备的应用程序
 
