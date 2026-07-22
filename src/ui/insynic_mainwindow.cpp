@@ -723,6 +723,18 @@ InsynicMainWindow::processGlobalSdlEvents()
         if (event.type >= SDL_EVENT_WINDOW_FIRST && event.type <= SDL_EVENT_WINDOW_LAST) {
             targetWindowID = event.window.windowID;
             hasWindowID = true;
+
+            if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED) {
+                for (InsynicDeviceWindow *w : m_deviceWindows) {
+                    SDL_Window *win = w->sdlWindow();
+                    if (win && SDL_GetWindowID(win) == targetWindowID) {
+                        SDL_HideWindow(win);
+                        w->close();
+                        break;
+                    }
+                }
+                continue;
+            }
         } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
             targetWindowID = event.motion.windowID;
             hasWindowID = true;
