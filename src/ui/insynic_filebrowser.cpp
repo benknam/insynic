@@ -11,20 +11,28 @@
 #include <QShortcut>
 #include <QMouseEvent>
 #include <QDesktopServices>
+#include <QMenuBar>
 
 InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
+                                                   const QString &deviceName,
                                                    QWidget *parent)
     : QDialog(parent)
     , m_fileManager(fm)
     , m_currentPath("/mnt")
+    , m_deviceName(deviceName)
     , m_currentViewMode(ViewMode::Detail)
     , m_clipboardMode(ClipboardMode::None)
     , m_sortOrder(Qt::AscendingOrder)
     , m_sortColumn(0)
     , m_lastSelectedItem(nullptr)
+    , m_selectedTile(nullptr)
 {
-    setWindowTitle(tr("File Manager"));
-    resize(800, 600);
+    QString title = tr("File Manager");
+    if (!m_deviceName.isEmpty()) {
+        title += " - " + m_deviceName;
+    }
+    setWindowTitle(title);
+    resize(900, 600);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(8, 8, 8, 8);
@@ -119,6 +127,7 @@ InsynicFileBrowserDialog::setupToolbar()
     m_sortDateBtn = new QPushButton(tr("Date"), this);
     m_viewModeBtn = new QPushButton(tr("Tile"), this);
     m_selectAllBtn = new QPushButton(tr("Select All"), this);
+    m_deselectAllBtn = new QPushButton(tr("Deselect All"), this);
 
     m_sortNameBtn->setCheckable(true);
     m_sortSizeBtn->setCheckable(true);
@@ -139,13 +148,16 @@ InsynicFileBrowserDialog::setupToolbar()
     m_toolbar->addWidget(m_sortDateBtn);
     m_toolbar->addSeparator();
     m_toolbar->addWidget(m_viewModeBtn);
+    m_toolbar->addSeparator();
     m_toolbar->addWidget(m_selectAllBtn);
+    m_toolbar->addWidget(m_deselectAllBtn);
 
     connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
     connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
     connect(m_sortDateBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByDateClicked);
     connect(m_viewModeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onViewModeChanged);
     connect(m_selectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSelectAllClicked);
+    connect(m_deselectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onDeselectAllClicked);
 
     layout()->addWidget(m_toolbar);
 }
@@ -153,7 +165,12 @@ InsynicFileBrowserDialog::setupToolbar()
 void
 InsynicFileBrowserDialog::retranslateUi()
 {
-    setWindowTitle(tr("File Manager"));
+    QString title = tr("File Manager");
+    if (!m_deviceName.isEmpty()) {
+        title += " - " + m_deviceName;
+    }
+    setWindowTitle(title);
+
     m_upBtn->setText(tr("Up"));
     m_refreshBtn->setText(tr("Refresh"));
     m_uploadBtn->setText(tr("Upload"));
@@ -165,6 +182,7 @@ InsynicFileBrowserDialog::retranslateUi()
     m_sortDateBtn->setText(tr("Date"));
     m_viewModeBtn->setText(m_currentViewMode == ViewMode::Detail ? tr("Tile") : tr("Detail"));
     m_selectAllBtn->setText(tr("Select All"));
+    m_deselectAllBtn->setText(tr("Deselect All"));
 
     QStringList headers = {tr("Name"), tr("Size"), tr("Date"), tr("Permissions")};
     m_treeWidget->setHeaderLabels(headers);
@@ -285,7 +303,11 @@ InsynicFileBrowserDialog::onRefreshClicked()
 void
 InsynicFileBrowserDialog::refresh()
 {
-    loadPath(m_currentPath);
+    if (m_currentViewMode == ViewMode::Detail) {
+        loadPath(m_currentPath);
+    } else {
+        setupTileView();
+    }
 }
 
 void
@@ -373,6 +395,8 @@ InsynicFileBrowserDialog::setupTileView()
         delete item;
     }
 
+    m_selectedTile = nullptr;
+
     bool ok;
     QVector<AdbFileInfo> files = m_fileManager->listFiles(m_currentPath, &ok);
     if (!ok) {
@@ -389,6 +413,7 @@ InsynicFileBrowserDialog::setupTileView()
         QVBoxLayout *tileLayout = new QVBoxLayout(tile);
         tileLayout->setContentsMargins(4, 4, 4, 4);
         tileLayout->setSpacing(2);
+        tileLayout->setAlignment(Qt::AlignCenter);
 
         QLabel *iconLabel = new QLabel(tile);
         QIcon icon = info.isDir ? style()->standardIcon(QStyle::SP_DirIcon)
@@ -400,12 +425,25 @@ InsynicFileBrowserDialog::setupTileView()
         nameLabel->setAlignment(Qt::AlignCenter);
         nameLabel->setWordWrap(true);
         nameLabel->setMaximumWidth(100);
+        nameLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
 
         tileLayout->addWidget(iconLabel);
         tileLayout->addWidget(nameLabel);
 
         tile->setProperty("filePath", info.path);
         tile->setProperty("isDir", info.isDir);
+        tile->setProperty("fileName", info.name);
+        tile->setProperty("fileSize", info.size);
+        tile->setProperty("fileDate", info.date);
+        tile->setProperty("fileTime", info.time);
+        tile->setProperty("fileOwner", info.owner);
+        tile->setProperty("fileGroup", info.group);
+        tile->setProperty("filePermissions", info.permissions);
+        tile->setProperty("fileIsLink", info.isLink);
+
+        tile->setStyleSheet("QWidget { background-color: transparent; border: 1px solid transparent; }");
+        tile->setMouseTracking(true);
+        tile->installEventFilter(this);
 
         m_tileLayout->addWidget(tile, row, col);
 
@@ -417,6 +455,198 @@ InsynicFileBrowserDialog::setupTileView()
     }
 
     m_statusLabel->setText(QString("%1 items").arg(files.size()));
+}
+
+bool
+InsynicFileBrowserDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    if (event->type() == QEvent::MouseButtonPress) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::RightButton) {
+            QWidget *tile = qobject_cast<QWidget*>(obj);
+            if (tile) {
+                onTileContextMenuRequested(tile->mapToParent(mouseEvent->pos()));
+                return true;
+            }
+        }
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            QWidget *tile = qobject_cast<QWidget*>(obj);
+            if (tile) {
+                onTileClicked();
+                return true;
+            }
+        }
+    } else if (event->type() == QEvent::MouseButtonDblClick) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            QWidget *tile = qobject_cast<QWidget*>(obj);
+            if (tile) {
+                onTileDoubleClicked();
+                return true;
+            }
+        }
+    }
+    return QDialog::eventFilter(obj, event);
+}
+
+void
+InsynicFileBrowserDialog::onTileDoubleClicked()
+{
+    QWidget *tile = qobject_cast<QWidget*>(sender());
+    if (!tile) return;
+
+    bool isDir = tile->property("isDir").toBool();
+    if (isDir) {
+        QString path = tile->property("filePath").toString();
+        loadPath(path);
+        switchViewMode(ViewMode::Tile);
+    }
+}
+
+void
+InsynicFileBrowserDialog::onTileClicked()
+{
+    QWidget *tile = qobject_cast<QWidget*>(sender());
+    if (!tile) return;
+
+    clearTileSelection();
+    setTileSelected(tile, true);
+    m_selectedTile = tile;
+}
+
+void
+InsynicFileBrowserDialog::onTileContextMenuRequested(const QPoint &pos)
+{
+    QWidget *tile = getTileAtPosition(pos);
+    if (!tile) return;
+
+    QMenu menu(this);
+
+    m_copyAction = menu.addAction(tr("Copy"));
+    m_cutAction = menu.addAction(tr("Cut"));
+    m_pasteAction = menu.addAction(tr("Paste"));
+    menu.addSeparator();
+    m_deleteAction = menu.addAction(tr("Delete"));
+    menu.addSeparator();
+
+    QMenu *sortMenu = menu.addMenu(tr("Sort"));
+    QAction *sortByName = sortMenu->addAction(tr("By Name"));
+    QAction *sortBySize = sortMenu->addAction(tr("By Size"));
+    QAction *sortByDate = sortMenu->addAction(tr("By Date"));
+
+    menu.addSeparator();
+    m_propertiesAction = menu.addAction(tr("Properties"));
+
+    m_copyAction->setEnabled(true);
+    m_cutAction->setEnabled(true);
+    m_deleteAction->setEnabled(true);
+    m_propertiesAction->setEnabled(true);
+    m_pasteAction->setEnabled(m_clipboardMode != ClipboardMode::None);
+
+    QAction *selectedAction = menu.exec(m_tileWidget->mapToGlobal(pos));
+
+    if (selectedAction == m_copyAction) {
+        m_clipboardPaths.clear();
+        m_clipboardPaths.append(tile->property("filePath").toString());
+        m_clipboardSourceDir = m_currentPath;
+        m_clipboardMode = ClipboardMode::Copy;
+        m_statusLabel->setText(tr("Copied 1 item"));
+    } else if (selectedAction == m_cutAction) {
+        m_clipboardPaths.clear();
+        m_clipboardPaths.append(tile->property("filePath").toString());
+        m_clipboardSourceDir = m_currentPath;
+        m_clipboardMode = ClipboardMode::Cut;
+        m_statusLabel->setText(tr("Cut 1 item"));
+    } else if (selectedAction == m_pasteAction) {
+        onPasteClicked();
+    } else if (selectedAction == m_deleteAction) {
+        QString name = tile->property("fileName").toString();
+        auto ret = QMessageBox::question(this, tr("Confirm Delete"),
+            QString(tr("Delete '%1'?")).arg(name));
+        if (ret == QMessageBox::Yes) {
+            QString remotePath = tile->property("filePath").toString();
+            bool ok = m_fileManager->deleteFile(remotePath);
+            if (ok) {
+                refresh();
+            } else {
+                QMessageBox::warning(this, tr("Error"), tr("Failed to delete"));
+            }
+        }
+    } else if (selectedAction == sortByName) {
+        onSortByNameClicked();
+    } else if (selectedAction == sortBySize) {
+        onSortBySizeClicked();
+    } else if (selectedAction == sortByDate) {
+        onSortByDateClicked();
+    } else if (selectedAction == m_propertiesAction) {
+        AdbFileInfo info;
+        info.name = tile->property("fileName").toString();
+        info.path = tile->property("filePath").toString();
+        info.isDir = tile->property("isDir").toBool();
+        info.size = tile->property("fileSize").toLongLong();
+        info.date = tile->property("fileDate").toString();
+        info.time = tile->property("fileTime").toString();
+        info.owner = tile->property("fileOwner").toString();
+        info.group = tile->property("fileGroup").toString();
+        info.permissions = tile->property("filePermissions").toString();
+        info.isLink = tile->property("fileIsLink").toBool();
+        showPropertiesDialog(info);
+    }
+}
+
+void
+InsynicFileBrowserDialog::clearTileSelection()
+{
+    for (int i = 0; i < m_tileLayout->count(); ++i) {
+        QLayoutItem *item = m_tileLayout->itemAt(i);
+        if (item && item->widget()) {
+            setTileSelected(item->widget(), false);
+        }
+    }
+}
+
+void
+InsynicFileBrowserDialog::setTileSelected(QWidget *tile, bool selected)
+{
+    if (selected) {
+        tile->setStyleSheet("QWidget { background-color: #3366CC; border: 1px solid #003399; }");
+    } else {
+        tile->setStyleSheet("QWidget { background-color: transparent; border: 1px solid transparent; }");
+    }
+}
+
+QWidget *
+InsynicFileBrowserDialog::getTileAtPosition(const QPoint &pos)
+{
+    for (int i = 0; i < m_tileLayout->count(); ++i) {
+        QLayoutItem *item = m_tileLayout->itemAt(i);
+        if (item && item->widget()) {
+            QWidget *widget = item->widget();
+            if (widget->geometry().contains(pos)) {
+                return widget;
+            }
+        }
+    }
+    return nullptr;
+}
+
+AdbFileInfo
+InsynicFileBrowserDialog::getTileFileInfo(QWidget *tile)
+{
+    AdbFileInfo info;
+    info.name = tile->property("fileName").toString();
+    info.path = tile->property("filePath").toString();
+    info.isDir = tile->property("isDir").toBool();
+    info.size = tile->property("fileSize").toLongLong();
+    info.date = tile->property("fileDate").toString();
+    info.time = tile->property("fileTime").toString();
+    info.owner = tile->property("fileOwner").toString();
+    info.group = tile->property("fileGroup").toString();
+    info.permissions = tile->property("filePermissions").toString();
+    info.isLink = tile->property("fileIsLink").toBool();
+    return info;
 }
 
 void
@@ -531,6 +761,13 @@ InsynicFileBrowserDialog::onContextMenuRequested(const QPoint &pos)
     menu.addSeparator();
     m_deleteAction = menu.addAction(tr("Delete"));
     menu.addSeparator();
+
+    QMenu *sortMenu = menu.addMenu(tr("Sort"));
+    QAction *sortByName = sortMenu->addAction(tr("By Name"));
+    QAction *sortBySize = sortMenu->addAction(tr("By Size"));
+    QAction *sortByDate = sortMenu->addAction(tr("By Date"));
+
+    menu.addSeparator();
     m_propertiesAction = menu.addAction(tr("Properties"));
 
     bool hasSelection = !m_treeWidget->selectedItems().isEmpty();
@@ -550,6 +787,12 @@ InsynicFileBrowserDialog::onContextMenuRequested(const QPoint &pos)
         onPasteClicked();
     } else if (selectedAction == m_deleteAction) {
         onDeleteClicked();
+    } else if (selectedAction == sortByName) {
+        onSortByNameClicked();
+    } else if (selectedAction == sortBySize) {
+        onSortBySizeClicked();
+    } else if (selectedAction == sortByDate) {
+        onSortByDateClicked();
     } else if (selectedAction == m_propertiesAction) {
         onPropertiesClicked();
     }

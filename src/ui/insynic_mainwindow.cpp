@@ -21,7 +21,6 @@
 
 InsynicMainWindow::InsynicMainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_fileBrowser(nullptr)
     , m_maxSize(0)
     , m_maxFps(60)
     , m_videoBitRate(8000000)
@@ -392,16 +391,33 @@ InsynicMainWindow::onFileManagerClicked()
         return;
     }
 
-    m_fileManager->setSerial(selectedSerial);
-
-    if (!m_fileBrowser) {
-        m_fileBrowser = new InsynicFileBrowserDialog(m_fileManager, this);
-    } else {
-        m_fileBrowser->refresh();
+    QString deviceName = m_fileManager->getDeviceName(selectedSerial);
+    if (deviceName.isEmpty()) {
+        deviceName = selectedSerial;
     }
-    m_fileBrowser->show();
-    m_fileBrowser->raise();
-    m_fileBrowser->activateWindow();
+
+    if (m_fileBrowsers.contains(selectedSerial)) {
+        InsynicFileBrowserDialog *browser = m_fileBrowsers[selectedSerial];
+        browser->show();
+        browser->raise();
+        browser->activateWindow();
+        return;
+    }
+
+    InsynicFileManager *fm = new InsynicFileManager(this);
+    fm->setAdbPath(m_adbPath);
+    fm->setSerial(selectedSerial);
+
+    InsynicFileBrowserDialog *browser = new InsynicFileBrowserDialog(fm, deviceName, this);
+    m_fileBrowsers[selectedSerial] = browser;
+
+    connect(browser, &QDialog::finished, [this, selectedSerial]() {
+        m_fileBrowsers.remove(selectedSerial);
+    });
+
+    browser->show();
+    browser->raise();
+    browser->activateWindow();
 }
 
 void
@@ -464,8 +480,8 @@ InsynicMainWindow::onLanguageChanged(QAction *action)
         m_controlPanel->retranslateUi();
     }
 
-    if (m_fileBrowser) {
-        m_fileBrowser->retranslateUi();
+    for (InsynicFileBrowserDialog *browser : m_fileBrowsers.values()) {
+        browser->retranslateUi();
     }
 
     for (InsynicDeviceWindow *w : m_deviceWindows) {

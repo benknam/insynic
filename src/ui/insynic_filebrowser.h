@@ -3,6 +3,8 @@
 
 #include <QDialog>
 #include <QTreeWidget>
+#include <QObject>
+#include <QEvent>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QToolBar>
@@ -31,6 +33,7 @@ class InsynicFileBrowserDialog : public QDialog
 
 public:
     explicit InsynicFileBrowserDialog(InsynicFileManager *fm,
+                                      const QString &deviceName = QString(),
                                       QWidget *parent = nullptr);
     ~InsynicFileBrowserDialog();
 
@@ -61,6 +64,12 @@ private slots:
     void onPasteClicked();
     void onContextMenuRequested(const QPoint &pos);
     void onPropertiesClicked();
+    void onTileDoubleClicked();
+    void onTileClicked();
+    void onTileContextMenuRequested(const QPoint &pos);
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
     void loadPath(const QString &path);
@@ -71,6 +80,10 @@ private:
     void switchViewMode(ViewMode mode);
     void updateSelectionState();
     void showPropertiesDialog(const AdbFileInfo &info);
+    void clearTileSelection();
+    void setTileSelected(QWidget *tile, bool selected);
+    QWidget *getTileAtPosition(const QPoint &pos);
+    AdbFileInfo getTileFileInfo(QWidget *tile);
 
     InsynicFileManager *m_fileManager;
 
@@ -88,6 +101,7 @@ private:
     QPushButton *m_sortDateBtn;
     QPushButton *m_viewModeBtn;
     QPushButton *m_selectAllBtn;
+    QPushButton *m_deselectAllBtn;
 
     QAction *m_copyAction;
     QAction *m_cutAction;
@@ -102,6 +116,7 @@ private:
     QLabel *m_statusLabel;
 
     QString m_currentPath;
+    QString m_deviceName;
     ViewMode m_currentViewMode;
     ClipboardMode m_clipboardMode;
     QStringList m_clipboardPaths;
@@ -111,6 +126,7 @@ private:
     int m_sortColumn;
 
     QTreeWidgetItem *m_lastSelectedItem;
+    QWidget *m_selectedTile;
 };
 
 #endif

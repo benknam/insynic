@@ -10,6 +10,7 @@
 #include <QMenu>
 #include <QTimer>
 #include <SDL3/SDL.h>
+#include <QMap>
 
 #include "insynic_controlpanel.h"
 #include "insynic_customtranslator.h"
@@ -72,7 +73,7 @@ private:
     InsynicControlPanel *m_controlPanel;
 
     InsynicFileManager *m_fileManager;
-    InsynicFileBrowserDialog *m_fileBrowser;
+    QMap<QString, InsynicFileBrowserDialog*> m_fileBrowsers;
 
     QString m_adbPath;
     QString m_serverPath;
