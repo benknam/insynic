@@ -107,6 +107,40 @@ void
 InsynicFileBrowserDialog::setupToolbar()
 {
     m_toolbar = new QToolBar(this);
+    m_toolbar->setStyleSheet(R"(
+        QToolBar {
+            padding: 2px;
+            background: transparent;
+            border: none;
+        }
+        QToolBar QToolButton {
+            min-width: 60px;
+            min-height: 24px;
+            padding: 4px 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #333;
+            color: #ddd;
+            font-size: 12px;
+        }
+        QToolBar QToolButton:hover {
+            background: #444;
+            border-color: #666;
+        }
+        QToolBar QToolButton:checked {
+            background: #3366CC;
+            border-color: #003399;
+            color: white;
+        }
+        QToolBar QToolButton:pressed {
+            background: #2255BB;
+        }
+        QToolBar QToolButton:disabled {
+            background: #222;
+            color: #666;
+            border-color: #444;
+        }
+    )");
 
     m_toolbar->addAction(tr("Up"), this, &InsynicFileBrowserDialog::onUpClicked);
     m_toolbar->addAction(tr("Refresh"), this, &InsynicFileBrowserDialog::onRefreshClicked);
