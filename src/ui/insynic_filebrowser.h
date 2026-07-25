@@ -90,12 +90,6 @@ private:
 
     QToolBar *m_toolbar;
     QLineEdit *m_pathBar;
-    QPushButton *m_upBtn;
-    QPushButton *m_refreshBtn;
-    QPushButton *m_uploadBtn;
-    QPushButton *m_downloadBtn;
-    QPushButton *m_deleteBtn;
-    QPushButton *m_newFolderBtn;
 
     QPushButton *m_sortNameBtn;
     QPushButton *m_sortSizeBtn;

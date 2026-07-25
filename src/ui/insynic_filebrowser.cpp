@@ -64,6 +64,7 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
     m_tileLayout = new QGridLayout(m_tileWidget);
     m_tileLayout->setSpacing(8);
     m_tileLayout->setContentsMargins(4, 4, 4, 4);
+    m_tileLayout->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     m_tileWidget->setVisible(false);
     layout->addWidget(m_tileWidget);
 
@@ -82,18 +83,6 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
             this, &InsynicFileBrowserDialog::onContextMenuRequested);
     connect(m_pathBar, &QLineEdit::returnPressed,
             this, &InsynicFileBrowserDialog::onPathReturnPressed);
-    connect(m_upBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onUpClicked);
-    connect(m_refreshBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onRefreshClicked);
-    connect(m_uploadBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onUploadClicked);
-    connect(m_downloadBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onDownloadClicked);
-    connect(m_deleteBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onDeleteClicked);
-    connect(m_newFolderBtn, &QPushButton::clicked,
-            this, &InsynicFileBrowserDialog::onNewFolderClicked);
 
     QShortcut *copyShortcut = new QShortcut(QKeySequence::Copy, this);
     QShortcut *cutShortcut = new QShortcut(QKeySequence::Cut, this);
@@ -119,12 +108,15 @@ InsynicFileBrowserDialog::setupToolbar()
 {
     m_toolbar = new QToolBar(this);
 
-    m_upBtn = new QPushButton(tr("Up"), this);
-    m_refreshBtn = new QPushButton(tr("Refresh"), this);
-    m_uploadBtn = new QPushButton(tr("Upload"), this);
-    m_downloadBtn = new QPushButton(tr("Download"), this);
-    m_deleteBtn = new QPushButton(tr("Delete"), this);
-    m_newFolderBtn = new QPushButton(tr("New Folder"), this);
+    m_toolbar->addAction(tr("Up"), this, &InsynicFileBrowserDialog::onUpClicked);
+    m_toolbar->addAction(tr("Refresh"), this, &InsynicFileBrowserDialog::onRefreshClicked);
+    m_toolbar->addSeparator();
+    m_toolbar->addAction(tr("Upload"), this, &InsynicFileBrowserDialog::onUploadClicked);
+    m_toolbar->addAction(tr("Download"), this, &InsynicFileBrowserDialog::onDownloadClicked);
+    m_toolbar->addAction(tr("Delete"), this, &InsynicFileBrowserDialog::onDeleteClicked);
+    m_toolbar->addSeparator();
+    m_toolbar->addAction(tr("New Folder"), this, &InsynicFileBrowserDialog::onNewFolderClicked);
+    m_toolbar->addSeparator();
 
     m_sortNameBtn = new QPushButton(tr("Name"), this);
     m_sortSizeBtn = new QPushButton(tr("Size"), this);
@@ -140,24 +132,32 @@ InsynicFileBrowserDialog::setupToolbar()
     m_sortTypeBtn->setCheckable(true);
     m_sortNameBtn->setChecked(true);
 
-    m_toolbar->addWidget(m_upBtn);
-    m_toolbar->addWidget(m_refreshBtn);
+    QWidget *sortWidget = new QWidget(this);
+    QHBoxLayout *sortLayout = new QHBoxLayout(sortWidget);
+    sortLayout->setContentsMargins(0, 0, 0, 0);
+    sortLayout->setSpacing(0);
+    sortLayout->addWidget(m_sortNameBtn);
+    sortLayout->addWidget(m_sortSizeBtn);
+    sortLayout->addWidget(m_sortDateBtn);
+    sortLayout->addWidget(m_sortTypeBtn);
+    m_toolbar->addWidget(sortWidget);
     m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_uploadBtn);
-    m_toolbar->addWidget(m_downloadBtn);
-    m_toolbar->addWidget(m_deleteBtn);
+
+    QWidget *viewWidget = new QWidget(this);
+    QHBoxLayout *viewLayout = new QHBoxLayout(viewWidget);
+    viewLayout->setContentsMargins(0, 0, 0, 0);
+    viewLayout->setSpacing(0);
+    viewLayout->addWidget(m_viewModeBtn);
+    m_toolbar->addWidget(viewWidget);
     m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_newFolderBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_sortNameBtn);
-    m_toolbar->addWidget(m_sortSizeBtn);
-    m_toolbar->addWidget(m_sortDateBtn);
-    m_toolbar->addWidget(m_sortTypeBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_viewModeBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_selectAllBtn);
-    m_toolbar->addWidget(m_deselectAllBtn);
+
+    QWidget *selectWidget = new QWidget(this);
+    QHBoxLayout *selectLayout = new QHBoxLayout(selectWidget);
+    selectLayout->setContentsMargins(0, 0, 0, 0);
+    selectLayout->setSpacing(0);
+    selectLayout->addWidget(m_selectAllBtn);
+    selectLayout->addWidget(m_deselectAllBtn);
+    m_toolbar->addWidget(selectWidget);
 
     connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
     connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
@@ -179,12 +179,6 @@ InsynicFileBrowserDialog::retranslateUi()
     }
     setWindowTitle(title);
 
-    m_upBtn->setText(tr("Up"));
-    m_refreshBtn->setText(tr("Refresh"));
-    m_uploadBtn->setText(tr("Upload"));
-    m_downloadBtn->setText(tr("Download"));
-    m_deleteBtn->setText(tr("Delete"));
-    m_newFolderBtn->setText(tr("New Folder"));
     m_sortNameBtn->setText(tr("Name"));
     m_sortSizeBtn->setText(tr("Size"));
     m_sortDateBtn->setText(tr("Date"));
@@ -332,6 +326,7 @@ InsynicFileBrowserDialog::onSortByNameClicked()
     m_sortNameBtn->setChecked(true);
     m_sortSizeBtn->setChecked(false);
     m_sortDateBtn->setChecked(false);
+    m_sortTypeBtn->setChecked(false);
 
     if (m_sortColumn == 0) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -348,6 +343,7 @@ InsynicFileBrowserDialog::onSortBySizeClicked()
     m_sortNameBtn->setChecked(false);
     m_sortSizeBtn->setChecked(true);
     m_sortDateBtn->setChecked(false);
+    m_sortTypeBtn->setChecked(false);
 
     if (m_sortColumn == 1) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -364,6 +360,7 @@ InsynicFileBrowserDialog::onSortByDateClicked()
     m_sortNameBtn->setChecked(false);
     m_sortSizeBtn->setChecked(false);
     m_sortDateBtn->setChecked(true);
+    m_sortTypeBtn->setChecked(false);
 
     if (m_sortColumn == 2) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
