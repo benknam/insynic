@@ -65,8 +65,8 @@ private slots:
     void onPasteClicked();
     void onContextMenuRequested(const QPoint &pos);
     void onPropertiesClicked();
-    void onTileDoubleClicked();
-    void onTileClicked();
+    void onTileDoubleClicked(QWidget *tile);
+    void onTileClicked(QWidget *tile);
     void onTileContextMenuRequested(const QPoint &pos);
 
 protected:

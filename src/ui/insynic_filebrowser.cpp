@@ -67,8 +67,46 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
     m_tileWidget->setVisible(false);
     layout->addWidget(m_tileWidget);
 
+    QWidget *statusBarWidget = new QWidget(this);
+    QHBoxLayout *statusBarLayout = new QHBoxLayout(statusBarWidget);
+    statusBarLayout->setContentsMargins(0, 0, 0, 0);
+    statusBarLayout->setSpacing(4);
+
     m_statusLabel = new QLabel(tr("Ready"), this);
-    layout->addWidget(m_statusLabel);
+    statusBarLayout->addWidget(m_statusLabel);
+    statusBarLayout->addStretch();
+
+    m_sortNameBtn = new QPushButton(tr("Name"), this);
+    m_sortSizeBtn = new QPushButton(tr("Size"), this);
+    m_sortDateBtn = new QPushButton(tr("Date"), this);
+    m_sortTypeBtn = new QPushButton(tr("Type"), this);
+    m_viewModeBtn = new QPushButton(tr("Tile"), this);
+    m_selectAllBtn = new QPushButton(tr("Select All"), this);
+    m_deselectAllBtn = new QPushButton(tr("Deselect All"), this);
+
+    m_sortNameBtn->setCheckable(true);
+    m_sortSizeBtn->setCheckable(true);
+    m_sortDateBtn->setCheckable(true);
+    m_sortTypeBtn->setCheckable(true);
+    m_sortNameBtn->setChecked(true);
+
+    m_sortNameBtn->setFixedSize(60, 24);
+    m_sortSizeBtn->setFixedSize(60, 24);
+    m_sortDateBtn->setFixedSize(60, 24);
+    m_sortTypeBtn->setFixedSize(60, 24);
+    m_viewModeBtn->setFixedSize(60, 24);
+    m_selectAllBtn->setFixedSize(80, 24);
+    m_deselectAllBtn->setFixedSize(80, 24);
+
+    statusBarLayout->addWidget(m_sortNameBtn);
+    statusBarLayout->addWidget(m_sortSizeBtn);
+    statusBarLayout->addWidget(m_sortDateBtn);
+    statusBarLayout->addWidget(m_sortTypeBtn);
+    statusBarLayout->addWidget(m_viewModeBtn);
+    statusBarLayout->addWidget(m_selectAllBtn);
+    statusBarLayout->addWidget(m_deselectAllBtn);
+
+    layout->addWidget(statusBarWidget);
 
     connect(m_treeWidget, &QTreeWidget::itemDoubleClicked,
             this, &InsynicFileBrowserDialog::onItemDoubleClicked);
@@ -124,20 +162,6 @@ InsynicFileBrowserDialog::setupToolbar()
     m_deleteBtn = new QPushButton(tr("Delete"), this);
     m_newFolderBtn = new QPushButton(tr("New Folder"), this);
 
-    m_sortNameBtn = new QPushButton(tr("Name"), this);
-    m_sortSizeBtn = new QPushButton(tr("Size"), this);
-    m_sortDateBtn = new QPushButton(tr("Date"), this);
-    m_sortTypeBtn = new QPushButton(tr("Type"), this);
-    m_viewModeBtn = new QPushButton(tr("Tile"), this);
-    m_selectAllBtn = new QPushButton(tr("Select All"), this);
-    m_deselectAllBtn = new QPushButton(tr("Deselect All"), this);
-
-    m_sortNameBtn->setCheckable(true);
-    m_sortSizeBtn->setCheckable(true);
-    m_sortDateBtn->setCheckable(true);
-    m_sortTypeBtn->setCheckable(true);
-    m_sortNameBtn->setChecked(true);
-
     m_toolbar->addWidget(m_upBtn);
     m_toolbar->addWidget(m_refreshBtn);
     m_toolbar->addSeparator();
@@ -146,16 +170,6 @@ InsynicFileBrowserDialog::setupToolbar()
     m_toolbar->addWidget(m_deleteBtn);
     m_toolbar->addSeparator();
     m_toolbar->addWidget(m_newFolderBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_sortNameBtn);
-    m_toolbar->addWidget(m_sortSizeBtn);
-    m_toolbar->addWidget(m_sortDateBtn);
-    m_toolbar->addWidget(m_sortTypeBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_viewModeBtn);
-    m_toolbar->addSeparator();
-    m_toolbar->addWidget(m_selectAllBtn);
-    m_toolbar->addWidget(m_deselectAllBtn);
 
     connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
     connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
@@ -500,21 +514,21 @@ InsynicFileBrowserDialog::eventFilter(QObject *obj, QEvent *event)
                 return true;
             }
         }
-    } else if (event->type() == QEvent::MouseButtonRelease) {
-        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-        if (mouseEvent->button() == Qt::LeftButton) {
-            QWidget *tile = qobject_cast<QWidget*>(obj);
-            if (tile) {
-                onTileClicked();
-                return true;
-            }
-        }
     } else if (event->type() == QEvent::MouseButtonDblClick) {
         QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             QWidget *tile = qobject_cast<QWidget*>(obj);
             if (tile) {
-                onTileDoubleClicked();
+                onTileDoubleClicked(tile);
+                return true;
+            }
+        }
+    } else if (event->type() == QEvent::MouseButtonRelease) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            QWidget *tile = qobject_cast<QWidget*>(obj);
+            if (tile) {
+                onTileClicked(tile);
                 return true;
             }
         }
@@ -523,9 +537,8 @@ InsynicFileBrowserDialog::eventFilter(QObject *obj, QEvent *event)
 }
 
 void
-InsynicFileBrowserDialog::onTileDoubleClicked()
+InsynicFileBrowserDialog::onTileDoubleClicked(QWidget *tile)
 {
-    QWidget *tile = qobject_cast<QWidget*>(sender());
     if (!tile) return;
 
     bool isDir = tile->property("isDir").toBool();
@@ -537,9 +550,8 @@ InsynicFileBrowserDialog::onTileDoubleClicked()
 }
 
 void
-InsynicFileBrowserDialog::onTileClicked()
+InsynicFileBrowserDialog::onTileClicked(QWidget *tile)
 {
-    QWidget *tile = qobject_cast<QWidget*>(sender());
     if (!tile) return;
 
     clearTileSelection();
