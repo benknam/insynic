@@ -32,7 +32,7 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
         title += " - " + m_deviceName;
     }
     setWindowTitle(title);
-    resize(900, 600);
+    resize(1100, 600);
 
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(8, 8, 8, 8);
@@ -45,17 +45,19 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
     layout->addWidget(m_pathBar);
 
     m_treeWidget = new QTreeWidget(this);
-    m_treeWidget->setHeaderLabels({tr("Name"), tr("Size"), tr("Date"), tr("Permissions")});
+    m_treeWidget->setHeaderLabels({tr("Name"), tr("Size"), tr("Date"), tr("Permissions"), tr("Type")});
     m_treeWidget->setRootIsDecorated(false);
     m_treeWidget->setAlternatingRowColors(true);
     m_treeWidget->setSortingEnabled(true);
     m_treeWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_treeWidget->setSelectionBehavior(QAbstractItemView::SelectRows);
+    m_treeWidget->setContextMenuPolicy(Qt::CustomContextMenu);
     m_treeWidget->header()->setStretchLastSection(false);
     m_treeWidget->header()->setSectionResizeMode(0, QHeaderView::Stretch);
     m_treeWidget->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     m_treeWidget->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     m_treeWidget->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
+    m_treeWidget->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents);
     layout->addWidget(m_treeWidget);
 
     m_tileWidget = new QWidget(this);
@@ -125,6 +127,7 @@ InsynicFileBrowserDialog::setupToolbar()
     m_sortNameBtn = new QPushButton(tr("Name"), this);
     m_sortSizeBtn = new QPushButton(tr("Size"), this);
     m_sortDateBtn = new QPushButton(tr("Date"), this);
+    m_sortTypeBtn = new QPushButton(tr("Type"), this);
     m_viewModeBtn = new QPushButton(tr("Tile"), this);
     m_selectAllBtn = new QPushButton(tr("Select All"), this);
     m_deselectAllBtn = new QPushButton(tr("Deselect All"), this);
@@ -132,6 +135,7 @@ InsynicFileBrowserDialog::setupToolbar()
     m_sortNameBtn->setCheckable(true);
     m_sortSizeBtn->setCheckable(true);
     m_sortDateBtn->setCheckable(true);
+    m_sortTypeBtn->setCheckable(true);
     m_sortNameBtn->setChecked(true);
 
     m_toolbar->addWidget(m_upBtn);
@@ -146,6 +150,7 @@ InsynicFileBrowserDialog::setupToolbar()
     m_toolbar->addWidget(m_sortNameBtn);
     m_toolbar->addWidget(m_sortSizeBtn);
     m_toolbar->addWidget(m_sortDateBtn);
+    m_toolbar->addWidget(m_sortTypeBtn);
     m_toolbar->addSeparator();
     m_toolbar->addWidget(m_viewModeBtn);
     m_toolbar->addSeparator();
@@ -155,6 +160,7 @@ InsynicFileBrowserDialog::setupToolbar()
     connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
     connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
     connect(m_sortDateBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByDateClicked);
+    connect(m_sortTypeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByTypeClicked);
     connect(m_viewModeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onViewModeChanged);
     connect(m_selectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSelectAllClicked);
     connect(m_deselectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onDeselectAllClicked);
@@ -180,11 +186,12 @@ InsynicFileBrowserDialog::retranslateUi()
     m_sortNameBtn->setText(tr("Name"));
     m_sortSizeBtn->setText(tr("Size"));
     m_sortDateBtn->setText(tr("Date"));
+    m_sortTypeBtn->setText(tr("Type"));
     m_viewModeBtn->setText(m_currentViewMode == ViewMode::Detail ? tr("Tile") : tr("Detail"));
     m_selectAllBtn->setText(tr("Select All"));
     m_deselectAllBtn->setText(tr("Deselect All"));
 
-    QStringList headers = {tr("Name"), tr("Size"), tr("Date"), tr("Permissions")};
+    QStringList headers = {tr("Name"), tr("Size"), tr("Date"), tr("Permissions"), tr("Type")};
     m_treeWidget->setHeaderLabels(headers);
 }
 
@@ -222,6 +229,11 @@ InsynicFileBrowserDialog::loadPath(const QString &path)
         }
         item->setText(2, info.date);
         item->setText(3, info.permissions);
+        QString fileType = info.isDir ? tr("Folder") : QFileInfo(info.name).suffix().toUpper();
+        if (fileType.isEmpty() && !info.isDir) {
+            fileType = tr("Unknown");
+        }
+        item->setText(4, fileType);
         item->setData(0, Qt::UserRole, info.path);
         item->setData(0, Qt::UserRole + 1, info.isDir);
         item->setData(0, Qt::UserRole + 2, info.size);
@@ -291,7 +303,9 @@ InsynicFileBrowserDialog::onUpClicked()
     if (parent.isEmpty() || parent == ".") {
         parent = "/";
     }
-    loadPath(parent);
+    m_currentPath = parent;
+    m_pathBar->setText(parent);
+    refresh();
 }
 
 void
@@ -355,6 +369,23 @@ InsynicFileBrowserDialog::onSortByDateClicked()
         m_sortOrder = Qt::AscendingOrder;
     }
     m_sortColumn = 2;
+    m_treeWidget->sortByColumn(m_sortColumn, m_sortOrder);
+}
+
+void
+InsynicFileBrowserDialog::onSortByTypeClicked()
+{
+    m_sortNameBtn->setChecked(false);
+    m_sortSizeBtn->setChecked(false);
+    m_sortDateBtn->setChecked(false);
+    m_sortTypeBtn->setChecked(true);
+
+    if (m_sortColumn == 4) {
+        m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
+    } else {
+        m_sortOrder = Qt::AscendingOrder;
+    }
+    m_sortColumn = 4;
     m_treeWidget->sortByColumn(m_sortColumn, m_sortOrder);
 }
 
@@ -535,6 +566,7 @@ InsynicFileBrowserDialog::onTileContextMenuRequested(const QPoint &pos)
     QAction *sortByName = sortMenu->addAction(tr("By Name"));
     QAction *sortBySize = sortMenu->addAction(tr("By Size"));
     QAction *sortByDate = sortMenu->addAction(tr("By Date"));
+    QAction *sortByType = sortMenu->addAction(tr("By Type"));
 
     menu.addSeparator();
     m_propertiesAction = menu.addAction(tr("Properties"));
@@ -580,6 +612,8 @@ InsynicFileBrowserDialog::onTileContextMenuRequested(const QPoint &pos)
         onSortBySizeClicked();
     } else if (selectedAction == sortByDate) {
         onSortByDateClicked();
+    } else if (selectedAction == sortByType) {
+        onSortByTypeClicked();
     } else if (selectedAction == m_propertiesAction) {
         AdbFileInfo info;
         info.name = tile->property("fileName").toString();
@@ -766,6 +800,7 @@ InsynicFileBrowserDialog::onContextMenuRequested(const QPoint &pos)
     QAction *sortByName = sortMenu->addAction(tr("By Name"));
     QAction *sortBySize = sortMenu->addAction(tr("By Size"));
     QAction *sortByDate = sortMenu->addAction(tr("By Date"));
+    QAction *sortByType = sortMenu->addAction(tr("By Type"));
 
     menu.addSeparator();
     m_propertiesAction = menu.addAction(tr("Properties"));
@@ -793,6 +828,8 @@ InsynicFileBrowserDialog::onContextMenuRequested(const QPoint &pos)
         onSortBySizeClicked();
     } else if (selectedAction == sortByDate) {
         onSortByDateClicked();
+    } else if (selectedAction == sortByType) {
+        onSortByTypeClicked();
     } else if (selectedAction == m_propertiesAction) {
         onPropertiesClicked();
     }

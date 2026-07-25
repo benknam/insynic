@@ -56,6 +56,7 @@ private slots:
     void onSortByNameClicked();
     void onSortBySizeClicked();
     void onSortByDateClicked();
+    void onSortByTypeClicked();
     void onViewModeChanged();
     void onSelectAllClicked();
     void onDeselectAllClicked();
@@ -99,6 +100,7 @@ private:
     QPushButton *m_sortNameBtn;
     QPushButton *m_sortSizeBtn;
     QPushButton *m_sortDateBtn;
+    QPushButton *m_sortTypeBtn;
     QPushButton *m_viewModeBtn;
     QPushButton *m_selectAllBtn;
     QPushButton *m_deselectAllBtn;
