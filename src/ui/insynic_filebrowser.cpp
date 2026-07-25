@@ -108,6 +108,7 @@ InsynicFileBrowserDialog::setupToolbar()
 {
     m_toolbar = new QToolBar(this);
     m_toolbar->setMovable(false);
+    m_toolbar->setPalette(QApplication::style()->standardPalette());
 
     m_toolbar->addAction(tr("Up"), this, &InsynicFileBrowserDialog::onUpClicked);
     m_toolbar->addAction(tr("Refresh"), this, &InsynicFileBrowserDialog::onRefreshClicked);
