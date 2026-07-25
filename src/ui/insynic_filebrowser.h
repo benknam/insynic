@@ -91,13 +91,13 @@ private:
     QToolBar *m_toolbar;
     QLineEdit *m_pathBar;
 
-    QPushButton *m_sortNameBtn;
-    QPushButton *m_sortSizeBtn;
-    QPushButton *m_sortDateBtn;
-    QPushButton *m_sortTypeBtn;
-    QPushButton *m_viewModeBtn;
-    QPushButton *m_selectAllBtn;
-    QPushButton *m_deselectAllBtn;
+    QAction *m_sortNameAction;
+    QAction *m_sortSizeAction;
+    QAction *m_sortDateAction;
+    QAction *m_sortTypeAction;
+    QAction *m_viewModeAction;
+    QAction *m_selectAllAction;
+    QAction *m_deselectAllAction;
 
     QAction *m_copyAction;
     QAction *m_cutAction;

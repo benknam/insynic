@@ -118,54 +118,29 @@ InsynicFileBrowserDialog::setupToolbar()
     m_toolbar->addAction(tr("New Folder"), this, &InsynicFileBrowserDialog::onNewFolderClicked);
     m_toolbar->addSeparator();
 
-    m_sortNameBtn = new QPushButton(tr("Name"), this);
-    m_sortSizeBtn = new QPushButton(tr("Size"), this);
-    m_sortDateBtn = new QPushButton(tr("Date"), this);
-    m_sortTypeBtn = new QPushButton(tr("Type"), this);
-    m_viewModeBtn = new QPushButton(tr("Tile"), this);
-    m_selectAllBtn = new QPushButton(tr("Select All"), this);
-    m_deselectAllBtn = new QPushButton(tr("Deselect All"), this);
+    m_sortNameAction = m_toolbar->addAction(tr("Name"));
+    m_sortSizeAction = m_toolbar->addAction(tr("Size"));
+    m_sortDateAction = m_toolbar->addAction(tr("Date"));
+    m_sortTypeAction = m_toolbar->addAction(tr("Type"));
+    m_viewModeAction = m_toolbar->addAction(tr("Tile"));
+    m_selectAllAction = m_toolbar->addAction(tr("Select All"));
+    m_deselectAllAction = m_toolbar->addAction(tr("Deselect All"));
 
-    m_sortNameBtn->setCheckable(true);
-    m_sortSizeBtn->setCheckable(true);
-    m_sortDateBtn->setCheckable(true);
-    m_sortTypeBtn->setCheckable(true);
-    m_sortNameBtn->setChecked(true);
+    m_sortNameAction->setCheckable(true);
+    m_sortSizeAction->setCheckable(true);
+    m_sortDateAction->setCheckable(true);
+    m_sortTypeAction->setCheckable(true);
+    m_sortNameAction->setChecked(true);
 
-    QWidget *sortWidget = new QWidget(this);
-    QHBoxLayout *sortLayout = new QHBoxLayout(sortWidget);
-    sortLayout->setContentsMargins(0, 0, 0, 0);
-    sortLayout->setSpacing(0);
-    sortLayout->addWidget(m_sortNameBtn);
-    sortLayout->addWidget(m_sortSizeBtn);
-    sortLayout->addWidget(m_sortDateBtn);
-    sortLayout->addWidget(m_sortTypeBtn);
-    m_toolbar->addWidget(sortWidget);
     m_toolbar->addSeparator();
 
-    QWidget *viewWidget = new QWidget(this);
-    QHBoxLayout *viewLayout = new QHBoxLayout(viewWidget);
-    viewLayout->setContentsMargins(0, 0, 0, 0);
-    viewLayout->setSpacing(0);
-    viewLayout->addWidget(m_viewModeBtn);
-    m_toolbar->addWidget(viewWidget);
-    m_toolbar->addSeparator();
-
-    QWidget *selectWidget = new QWidget(this);
-    QHBoxLayout *selectLayout = new QHBoxLayout(selectWidget);
-    selectLayout->setContentsMargins(0, 0, 0, 0);
-    selectLayout->setSpacing(0);
-    selectLayout->addWidget(m_selectAllBtn);
-    selectLayout->addWidget(m_deselectAllBtn);
-    m_toolbar->addWidget(selectWidget);
-
-    connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
-    connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
-    connect(m_sortDateBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByDateClicked);
-    connect(m_sortTypeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByTypeClicked);
-    connect(m_viewModeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onViewModeChanged);
-    connect(m_selectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSelectAllClicked);
-    connect(m_deselectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onDeselectAllClicked);
+    connect(m_sortNameAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onSortByNameClicked);
+    connect(m_sortSizeAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
+    connect(m_sortDateAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onSortByDateClicked);
+    connect(m_sortTypeAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onSortByTypeClicked);
+    connect(m_viewModeAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onViewModeChanged);
+    connect(m_selectAllAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onSelectAllClicked);
+    connect(m_deselectAllAction, &QAction::triggered, this, &InsynicFileBrowserDialog::onDeselectAllClicked);
 
     layout()->addWidget(m_toolbar);
 }
@@ -179,13 +154,13 @@ InsynicFileBrowserDialog::retranslateUi()
     }
     setWindowTitle(title);
 
-    m_sortNameBtn->setText(tr("Name"));
-    m_sortSizeBtn->setText(tr("Size"));
-    m_sortDateBtn->setText(tr("Date"));
-    m_sortTypeBtn->setText(tr("Type"));
-    m_viewModeBtn->setText(m_currentViewMode == ViewMode::Detail ? tr("Tile") : tr("Detail"));
-    m_selectAllBtn->setText(tr("Select All"));
-    m_deselectAllBtn->setText(tr("Deselect All"));
+    m_sortNameAction->setText(tr("Name"));
+    m_sortSizeAction->setText(tr("Size"));
+    m_sortDateAction->setText(tr("Date"));
+    m_sortTypeAction->setText(tr("Type"));
+    m_viewModeAction->setText(m_currentViewMode == ViewMode::Detail ? tr("Tile") : tr("Detail"));
+    m_selectAllAction->setText(tr("Select All"));
+    m_deselectAllAction->setText(tr("Deselect All"));
 
     QStringList headers = {tr("Name"), tr("Size"), tr("Date"), tr("Permissions"), tr("Type")};
     m_treeWidget->setHeaderLabels(headers);
@@ -323,10 +298,10 @@ InsynicFileBrowserDialog::refresh()
 void
 InsynicFileBrowserDialog::onSortByNameClicked()
 {
-    m_sortNameBtn->setChecked(true);
-    m_sortSizeBtn->setChecked(false);
-    m_sortDateBtn->setChecked(false);
-    m_sortTypeBtn->setChecked(false);
+    m_sortNameAction->setChecked(true);
+    m_sortSizeAction->setChecked(false);
+    m_sortDateAction->setChecked(false);
+    m_sortTypeAction->setChecked(false);
 
     if (m_sortColumn == 0) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -340,10 +315,10 @@ InsynicFileBrowserDialog::onSortByNameClicked()
 void
 InsynicFileBrowserDialog::onSortBySizeClicked()
 {
-    m_sortNameBtn->setChecked(false);
-    m_sortSizeBtn->setChecked(true);
-    m_sortDateBtn->setChecked(false);
-    m_sortTypeBtn->setChecked(false);
+    m_sortNameAction->setChecked(false);
+    m_sortSizeAction->setChecked(true);
+    m_sortDateAction->setChecked(false);
+    m_sortTypeAction->setChecked(false);
 
     if (m_sortColumn == 1) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -357,10 +332,10 @@ InsynicFileBrowserDialog::onSortBySizeClicked()
 void
 InsynicFileBrowserDialog::onSortByDateClicked()
 {
-    m_sortNameBtn->setChecked(false);
-    m_sortSizeBtn->setChecked(false);
-    m_sortDateBtn->setChecked(true);
-    m_sortTypeBtn->setChecked(false);
+    m_sortNameAction->setChecked(false);
+    m_sortSizeAction->setChecked(false);
+    m_sortDateAction->setChecked(true);
+    m_sortTypeAction->setChecked(false);
 
     if (m_sortColumn == 2) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -374,10 +349,10 @@ InsynicFileBrowserDialog::onSortByDateClicked()
 void
 InsynicFileBrowserDialog::onSortByTypeClicked()
 {
-    m_sortNameBtn->setChecked(false);
-    m_sortSizeBtn->setChecked(false);
-    m_sortDateBtn->setChecked(false);
-    m_sortTypeBtn->setChecked(true);
+    m_sortNameAction->setChecked(false);
+    m_sortSizeAction->setChecked(false);
+    m_sortDateAction->setChecked(false);
+    m_sortTypeAction->setChecked(true);
 
     if (m_sortColumn == 4) {
         m_sortOrder = m_sortOrder == Qt::AscendingOrder ? Qt::DescendingOrder : Qt::AscendingOrder;
@@ -406,12 +381,12 @@ InsynicFileBrowserDialog::switchViewMode(ViewMode mode)
     if (mode == ViewMode::Detail) {
         m_treeWidget->setVisible(true);
         m_tileWidget->setVisible(false);
-        m_viewModeBtn->setText(tr("Tile"));
+        m_viewModeAction->setText(tr("Tile"));
         loadPath(m_currentPath);
     } else {
         m_treeWidget->setVisible(false);
         m_tileWidget->setVisible(true);
-        m_viewModeBtn->setText(tr("Detail"));
+        m_viewModeAction->setText(tr("Detail"));
         setupTileView();
     }
 }
@@ -436,7 +411,11 @@ InsynicFileBrowserDialog::setupTileView()
 
     int row = 0;
     int col = 0;
-    int maxCols = 4;
+    int tileWidth = 120;
+    int tileSpacing = 8;
+    int availableWidth = m_tileWidget->width();
+    int maxCols = qMax(1, availableWidth / (tileWidth + tileSpacing));
+    if (maxCols < 1) maxCols = 1;
 
     for (const AdbFileInfo &info : files) {
         QWidget *tile = new QWidget(m_tileWidget);
