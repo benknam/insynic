@@ -12,6 +12,7 @@
 #include <QMouseEvent>
 #include <QDesktopServices>
 #include <QMenuBar>
+#include <QFrame>
 
 InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
                                                    const QString &deviceName,
@@ -69,8 +70,8 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
 
     QWidget *statusBarWidget = new QWidget(this);
     QHBoxLayout *statusBarLayout = new QHBoxLayout(statusBarWidget);
-    statusBarLayout->setContentsMargins(0, 0, 0, 0);
-    statusBarLayout->setSpacing(4);
+    statusBarLayout->setContentsMargins(4, 4, 4, 4);
+    statusBarLayout->setSpacing(8);
 
     m_statusLabel = new QLabel(tr("Ready"), this);
     statusBarLayout->addWidget(m_statusLabel);
@@ -98,13 +99,45 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
     m_selectAllBtn->setFixedSize(80, 24);
     m_deselectAllBtn->setFixedSize(80, 24);
 
-    statusBarLayout->addWidget(m_sortNameBtn);
-    statusBarLayout->addWidget(m_sortSizeBtn);
-    statusBarLayout->addWidget(m_sortDateBtn);
-    statusBarLayout->addWidget(m_sortTypeBtn);
-    statusBarLayout->addWidget(m_viewModeBtn);
-    statusBarLayout->addWidget(m_selectAllBtn);
-    statusBarLayout->addWidget(m_deselectAllBtn);
+    QFrame *sortFrame = new QFrame(this);
+    sortFrame->setFrameStyle(QFrame::Box | QFrame::Sunken);
+    sortFrame->setLineWidth(1);
+    QHBoxLayout *sortLayout = new QHBoxLayout(sortFrame);
+    sortLayout->setContentsMargins(4, 2, 4, 2);
+    sortLayout->setSpacing(2);
+    sortLayout->addWidget(m_sortNameBtn);
+    sortLayout->addWidget(m_sortSizeBtn);
+    sortLayout->addWidget(m_sortDateBtn);
+    sortLayout->addWidget(m_sortTypeBtn);
+
+    QFrame *viewFrame = new QFrame(this);
+    viewFrame->setFrameStyle(QFrame::Box | QFrame::Sunken);
+    viewFrame->setLineWidth(1);
+    QHBoxLayout *viewLayout = new QHBoxLayout(viewFrame);
+    viewLayout->setContentsMargins(4, 2, 4, 2);
+    viewLayout->setSpacing(2);
+    viewLayout->addWidget(m_viewModeBtn);
+
+    QFrame *selectFrame = new QFrame(this);
+    selectFrame->setFrameStyle(QFrame::Box | QFrame::Sunken);
+    selectFrame->setLineWidth(1);
+    QHBoxLayout *selectLayout = new QHBoxLayout(selectFrame);
+    selectLayout->setContentsMargins(4, 2, 4, 2);
+    selectLayout->setSpacing(2);
+    selectLayout->addWidget(m_selectAllBtn);
+    selectLayout->addWidget(m_deselectAllBtn);
+
+    statusBarLayout->addWidget(sortFrame);
+    statusBarLayout->addWidget(viewFrame);
+    statusBarLayout->addWidget(selectFrame);
+
+    connect(m_sortNameBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByNameClicked);
+    connect(m_sortSizeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortBySizeClicked);
+    connect(m_sortDateBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByDateClicked);
+    connect(m_sortTypeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSortByTypeClicked);
+    connect(m_viewModeBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onViewModeChanged);
+    connect(m_selectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onSelectAllClicked);
+    connect(m_deselectAllBtn, &QPushButton::clicked, this, &InsynicFileBrowserDialog::onDeselectAllClicked);
 
     layout->addWidget(statusBarWidget);
 
