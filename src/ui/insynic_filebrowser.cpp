@@ -68,6 +68,8 @@ InsynicFileBrowserDialog::InsynicFileBrowserDialog(InsynicFileManager *fm,
     layout->addWidget(m_tileWidget);
 
     m_statusLabel = new QLabel(tr("Ready"), this);
+    m_statusLabel->setFixedHeight(24);
+    m_statusLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     layout->addWidget(m_statusLabel);
 
     connect(m_treeWidget, &QTreeWidget::itemDoubleClicked,
@@ -475,6 +477,8 @@ InsynicFileBrowserDialog::setupTileView()
         tile->setStyleSheet("QWidget { background-color: transparent; border: 1px solid transparent; }");
         tile->setMouseTracking(true);
         tile->installEventFilter(this);
+        tile->setFixedSize(120, 100);
+        tile->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
         m_tileLayout->addWidget(tile, row, col);
 
